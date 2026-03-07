@@ -125,7 +125,7 @@ task.spawn(function()
                 end)
                 
                 -- Sleep(EditPut.Value) -> Kita ganti dengan task.wait
-                task.wait(0.12) 
+                task.wait(0.1) 
             end
 
             -- Jeda singkat transisi (agar blok sempat muncul di server)
@@ -133,7 +133,7 @@ task.spawn(function()
 
             -- --- TAHAP 2: MENGHANCURKAN SEMUA BLOK (BREAK PHASE) ---
             -- Di AHK kamu bisa menambahkan loop Klik di sini
-            for h = 1, (_G.HitAmount or 3) do -- Ulangi pukulan sebanyak HitAmount
+            for h = 1, (_G.HitAmount or 0) do -- Ulangi pukulan sebanyak HitAmount
                 if not _G.AutoPBNB then break end
                 
                 for _, offset in ipairs(_G.SelectedTargets) do
@@ -148,7 +148,7 @@ task.spawn(function()
                         FistRemote:FireServer(targetVector2)
                     end)
                     
-                    task.wait(0.08) -- Jeda antar pukulan (biar stabil)
+                    task.wait(0.1) -- Jeda antar pukulan (biar stabil)
                 end
             end
         end
