@@ -59,14 +59,16 @@ Title.BackgroundTransparency = 1; Title.TextXAlignment = Enum.TextXAlignment.Lef
 -- 4. Bikin Segitiga Resize di Pojok Kanan Bawah
 local ResizeHandle = Instance.new("TextButton", Main)
 ResizeHandle.Name = "ResizeHandle"
-ResizeHandle.Size = UDim2.new(0, 20, 0, 20)
-ResizeHandle.Position = UDim2.new(1, -20, 1, -20)
+ResizeHandle.Size = UDim2.new(0, 25, 0, 25) -- Sedikit lebih besar agar mudah diklik
+ResizeHandle.Position = UDim2.new(1, -25, 1, -25) -- Pas di pojok kanan bawah
 ResizeHandle.BackgroundTransparency = 1
-ResizeHandle.Text = "◢" -- Simbol segitiga pojok
+ResizeHandle.Text = "◢" 
 ResizeHandle.TextColor3 = Theme.Accent
-ResizeHandle.TextSize = 18
-ResizeHandle.ZIndex = 10
+ResizeHandle.TextSize = 20
+ResizeHandle.ZIndex = 50 -- Angka tinggi agar tidak tertutup konten tab
 ResizeHandle.Font = Enum.Font.GothamBold
+ResizeHandle.TextXAlignment = Enum.TextXAlignment.Right
+ResizeHandle.TextYAlignment = Enum.TextYAlignment.Bottom
 
 -- 5. Logika Fungsi Resize
 local function MakeResizable(frame, handle)
