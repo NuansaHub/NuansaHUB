@@ -100,22 +100,24 @@ local function GetCurrentGrid()
 end
 
 -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
--- SMART PBNB ENGINE (WITH BLOCK DETECTION)
+-- SMART PBNB ENGINE (GRID-BASED DETECTION)
 -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
 
--- Fungsi untuk mengecek apakah ada blok di koordinat tertentu
-local function IsBlockAt(targetVector2)
-    -- Kita buat Raycast kecil dari atas ke bawah di posisi target
-    local origin = Vector3.new(targetVector2.X * 4.5, (targetVector2.Y * 4.5) + 2, 0)
-    local direction = Vector3.new(0, -4, 0)
+-- Fungsi untuk cek apakah ada blok di koordinat grid (X, Y)
+local function CheckBlockAt(tx, ty)
+    -- Kita asumsikan ukuran 1 blok grid adalah sekitar 4 sampai 4.5 unit
+    -- Kita cek di posisi 3D yang sesuai dengan koordinat grid tersebut
+    local checkPos = Vector3.new(tx * 4.5, ty * 4.5, 0) 
+    local checkSize = Vector3.new(2, 2, 5) -- Area deteksi kecil di tengah grid
     
-    local raycastResult = game.Workspace:Raycast(origin, direction)
+    local params = OverlapParams.new()
+    params.FilterType = Enum.RaycastFilterType.Exclude
+    params.FilterDescendantsInstances = {Player.Character} -- Abaikan karakter kita sendiri
     
-    if raycastResult and raycastResult.Instance then
-        -- Jika terkena sesuatu, berarti ada blok
-        return true
-    end
-    return false
+    local parts = workspace:GetPartBoundsInBox(CFrame.new(checkPos), checkSize, params)
+    
+    -- Jika ada Part yang ditemukan, berarti ada blok
+    return #parts > 0
 end
 
 task.spawn(function()
@@ -126,48 +128,37 @@ task.spawn(function()
             
             local currentPos = GetCurrentGrid()
             
-            -- PHASE 1: SMART PLACE (Hanya pasang jika KOSONG)
+            -- PHASE 1: PUT (Hanya pasang jika grid KOSONG)
             for _, offset in ipairs(targetsToProcess) do
                 if not _G.AutoPBNB then break end
-                local tx, ty = math.floor(currentPos.X + offset.X), math.floor(currentPos.Y + offset.Y)
+                local tx = math.floor(currentPos.X + offset.X)
+                local ty = math.floor(currentPos.Y + offset.Y)
                 
-                -- Cek apakah kotak tersebut kosong?
-                if not IsBlockAt(Vector2.new(tx, ty)) then
+                if not CheckBlockAt(tx, ty) then
                     pcall(function()
                         PlaceRemote:FireServer(Vector2.new(tx, ty), tonumber(_G.SelectedBlockID))
                     end)
-                    task.wait(0.1)
+                    task.wait(0.1) -- Jeda pasang
                 end
             end
             
-            task.wait(0.3) -- Jeda transisi
+            task.wait(0.2) -- Jeda transisi
 
-            -- PHASE 2: SMART BREAK (Hanya pukul jika ADA BLOK)
-            -- Kita akan terus memukul sampai semua target bersih
-            local allCleared = false
-            local hitCounter = 0
-            
-            while not allCleared and _G.AutoPBNB do
-                allCleared = true -- Asumsikan bersih dulu
-                hitCounter = hitCounter + 1
-                
+            -- PHASE 2: BREAK (Hanya pukul jika grid ISI)
+            for h = 1, (_G.HitAmount or 3) do
+                if not _G.AutoPBNB then break end
                 for _, offset in ipairs(targetsToProcess) do
                     if not _G.AutoPBNB then break end
-                    local tPos = Vector2.new(math.floor(currentPos.X + offset.X), math.floor(currentPos.Y + offset.Y))
+                    local tx = math.floor(currentPos.X + offset.X)
+                    local ty = math.floor(currentPos.Y + offset.Y)
                     
-                    -- Cek apakah masih ada blok?
-                    if IsBlockAt(tPos) then
-                        allCleared = false -- Ternyata masih ada, jangan selesai dulu
+                    -- Hanya pukul jika sensor mendeteksi ada blok
+                    if CheckBlockAt(tx, ty) then
                         pcall(function()
-                            FistRemote:FireServer(tPos)
+                            FistRemote:FireServer(Vector2.new(tx, ty))
                         end)
-                        task.wait(0.08)
+                        task.wait(0.08) -- Jeda pukul
                     end
-                end
-                
-                -- Jika sudah mencapai batas HitAmount atau sudah bersih, keluar loop
-                if hitCounter >= (_G.HitAmount * 2) or allCleared then 
-                    break 
                 end
             end
         end
