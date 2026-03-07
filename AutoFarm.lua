@@ -28,7 +28,7 @@ _G.Farm_BlockID = 5       -- Default ID
 _G.Farm_PlaceDelay = 0.15 -- Default Delay Place
 _G.Farm_HitDelay = 0.08   -- Default Delay Hit
 _G.Farm_HitCount = 3      -- Default Hit
-_G.Farm_BlockID = 0 -- Default ID
+_G.Farm_BlockID = nil -- Default ID
 _G.Farm_Targets = {}
 
 local Theme = {
@@ -39,7 +39,7 @@ local Theme = {
     SubText = Color3.fromRGB(160, 165, 175)
 }
 
--- [[ 1. SISTEM INVENTORY & DROPDOWN (REAL DATA - USE ID) ]] --
+-- [[ 1. SISTEM INVENTORY & DROPDOWN (REAL DATA) ]] --
 local function GetInventoryItems()
     local items = {}
     
@@ -50,24 +50,25 @@ local function GetInventoryItems()
 
         for slotIndex, itemData in pairs(InventoryModule.Stacks) do
             if type(itemData) == "table" and itemData.Id then
-                local realID = itemData.Id -- KITA AMBIL ID-NYA DI SINI
+                -- Di game ini, itemData.Id isinya adalah teks seperti "dirt", "rock"
+                local itemStringID = itemData.Id 
                 local amount = itemData.Amount or 1
                 
-                local dataInfo = ItemsManager.RequestItemData(realID)
-                local realName = (dataInfo and dataInfo.Name) and dataInfo.Name or "Item ID: " .. tostring(realID)
+                local dataInfo = ItemsManager.RequestItemData(itemStringID)
+                local realName = (dataInfo and dataInfo.Name) and dataInfo.Name or itemStringID
                 
                 local displayName = realName .. " (x" .. amount .. ")"
                 
-                -- Kita simpan "realID" sebagai value
+                -- Kita simpan "dirt" sebagai value yang akan dikirim ke server
                 if not items[displayName] then
-                    items[displayName] = realID
+                    items[displayName] = itemStringID
                 end
             end
         end
     end)
     
     if next(items) == nil then
-        items["No Items Found / Loading..."] = 0
+        items["No Items Found"] = nil
     end
     
     return items
@@ -201,9 +202,10 @@ task.spawn(function()
                 if not _G.Farm_Active then break end
                 local tx, ty = math.floor(cp.X + o.X), math.floor(cp.Y + o.Y)
                 
-                if _G.Farm_BlockID ~= 0 then 
+                -- Pastikan blok sudah dipilih dari Dropdown (tidak nil)
+                if _G.Farm_BlockID then 
                     pcall(function() 
-                        -- KIRIM ID ANGKA KE SERVER
+                        -- SAMA PERSIS DENGAN REMOTE SPY KAMU
                         PlaceRemote:FireServer(Vector2.new(tx, ty), _G.Farm_BlockID) 
                     end)
                 end
