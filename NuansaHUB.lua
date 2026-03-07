@@ -102,44 +102,38 @@ end
 task.spawn(function()
     while true do
         if _G.AutoPBNB and #_G.SelectedTargets > 0 then
+            -- Ambil snapshot target agar urutan tidak berubah di tengah jalan
+            local targetsToProcess = {}
+            for _, v in ipairs(_G.SelectedTargets) do table.insert(targetsToProcess, v) end
+            
             local currentPos = GetCurrentGrid()
             
-            -- TAHAP 1: PUT (PLACE)
-            -- Kita pasang di semua target satu per satu tanpa dipukul dulu
-            for _, offset in ipairs(_G.SelectedTargets) do
+            -- PHASE 1: PLACE SEMUA KOTAK
+            for _, offset in ipairs(targetsToProcess) do
                 if not _G.AutoPBNB then break end
-                local target = Vector2.new(math.floor(currentPos.X + offset.X), math.floor(currentPos.Y + offset.Y))
-                
+                local tx, ty = math.floor(currentPos.X + offset.X), math.floor(currentPos.Y + offset.Y)
                 pcall(function()
-                    PlaceRemote:FireServer(target, tonumber(_G.SelectedBlockID))
+                    PlaceRemote:FireServer(Vector2.new(tx, ty), tonumber(_G.SelectedBlockID))
                 end)
-                -- Jeda tipis antar pemasangan agar server tidak bingung
-                task.wait(0.05) 
+                task.wait(0.08) -- Beri waktu server bernapas
             end
             
-            -- JEDA TRANSISI
-            -- Memberi waktu server untuk meletakkan blok sebelum mulai dipukul
-            task.wait(0.1)
+            task.wait(0.15) -- Jeda transisi Place ke Break
 
-            -- TAHAP 2: BREAK (FIST CYCLE)
-            -- Melakukan siklus pukulan sebanyak HitAmount
+            -- PHASE 2: BREAK (HIT CYCLE)
             for h = 1, (_G.HitAmount or 3) do
                 if not _G.AutoPBNB then break end
-                
-                for _, offset in ipairs(_G.SelectedTargets) do
+                for _, offset in ipairs(targetsToProcess) do
                     if not _G.AutoPBNB then break end
-                    local target = Vector2.new(math.floor(currentPos.X + offset.X), math.floor(currentPos.Y + offset.Y))
-                    
+                    local tx, ty = math.floor(currentPos.X + offset.X), math.floor(currentPos.Y + offset.Y)
                     pcall(function()
-                        FistRemote:FireServer(target)
+                        FistRemote:FireServer(Vector2.new(tx, ty))
                     end)
-                    -- Jeda antar pukulan per blok (sangat penting untuk kestabilan)
-                    task.wait(0.07) 
+                    task.wait(0.06) -- Kecepatan pukul
                 end
             end
         end
-        -- Jeda sebelum memulai cycle baru (menghindari spam berlebih)
-        task.wait(0.1)
+        task.wait(0.2) -- Jeda antar cycle
     end
 end)
 
@@ -153,15 +147,31 @@ Instance.new("UIGridLayout", GridBox).CellSize = UDim2.new(0, 40, 0, 40)
 
 for y = 2, -2, -1 do
     for x = -2, 2 do
-        local b = Instance.new("TextButton", GridBox); b.Text = (x == 0 and y == 0) and "ME" or x..","..y
+        local b = Instance.new("TextButton", GridBox)
+        b.Text = (x == 0 and y == 0) and "ME" or x..","..y
         b.BackgroundColor3 = (x == 0 and y == 0) and Color3.fromRGB(0, 150, 255) or Color3.fromRGB(45, 45, 50)
         Instance.new("UICorner", b); b.TextColor3 = Color3.fromRGB(255,255,255)
+        
         if x ~= 0 or y ~= 0 then
             local act = false
             b.MouseButton1Click:Connect(function()
                 act = not act
-                if act then table.insert(_G.SelectedTargets, {X = x, Y = y}); b.BackgroundColor3 = Color3.fromRGB(0, 255, 200)
-                else for i, v in pairs(_G.SelectedTargets) do if v.X == x and v.Y == y then table.remove(_G.SelectedTargets, i) end end b.BackgroundColor3 = Color3.fromRGB(45, 45, 50) end
+                if act then
+                    -- Simpan dengan koordinat yang pasti bulat
+                    table.insert(_G.SelectedTargets, {X = math.floor(x), Y = math.floor(y)})
+                    b.BackgroundColor3 = Color3.fromRGB(0, 255, 200)
+                    b.TextColor3 = Color3.fromRGB(0,0,0)
+                else
+                    -- Hapus berdasarkan koordinat X dan Y yang cocok
+                    for i, v in ipairs(_G.SelectedTargets) do
+                        if v.X == math.floor(x) and v.Y == math.floor(y) then
+                            table.remove(_G.SelectedTargets, i)
+                            break
+                        end
+                    end
+                    b.BackgroundColor3 = Color3.fromRGB(45, 45, 50)
+                    b.TextColor3 = Color3.fromRGB(255,255,255)
+                end
             end)
         end
     end
