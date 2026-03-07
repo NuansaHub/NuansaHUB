@@ -1,5 +1,5 @@
 -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
--- ALPHA PROJECT v5.5 [FINAL - FIXED MINIMIZE]
+-- ALPHA PROJECT v5.5 [FINAL - FIXED ORDER]
 -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
 
 local Players = game:GetService("Players")
@@ -11,15 +11,7 @@ local PlaceRemote = RS:WaitForChild("Remotes"):WaitForChild("PlayerPlaceItem")
 local FistRemote = RS:WaitForChild("Remotes"):WaitForChild("PlayerFist")
 
 -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
--- DATA & CONFIG
--- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
-_G.AutoPBNB = false
-_G.SelectedTargets = {} 
-_G.SelectedBlockID = 5  
-_G.HitAmount = 3         
-
--- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
--- UI SETUP (HARUS DI ATAS SEBELUM TOMBOL DIBUAT)
+-- 1. UI DASAR (Dibuat paling awal agar bisa jadi Parent)
 -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
 local ScreenGui = Instance.new("ScreenGui", Player:WaitForChild("PlayerGui"))
 ScreenGui.Name = "AlphaProjectFinal"; ScreenGui.ResetOnSpawn = false
@@ -30,82 +22,119 @@ Main.BackgroundColor3 = Color3.fromRGB(15, 15, 20); Main.Active = true
 Instance.new("UICorner", Main); Instance.new("UIStroke", Main).Color = Color3.fromRGB(0, 255, 200)
 
 -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
--- MINIMIZE SYSTEM (DELTA STYLE)
+-- 2. MINIMIZE SYSTEM (Logo Kecil & Tombol)
 -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
 
--- Buat Tombol Kecil (Logo Delta Style)
+-- Logo Kecil (Muncul saat menu ditutup)
 local MinLogo = Instance.new("ImageButton", ScreenGui)
-MinLogo.Name = "MinimizeLogo"
-MinLogo.Size = UDim2.new(0, 50, 0, 50)
-MinLogo.Position = UDim2.new(0, 20, 0.5, -25)
-MinLogo.BackgroundColor3 = Color3.fromRGB(15, 15, 20)
-MinLogo.Visible = false
-Instance.new("UICorner", MinLogo).CornerRadius = UDim.new(0, 10)
-local Stroke = Instance.new("UIStroke", MinLogo)
-Stroke.Color = Color3.fromRGB(0, 255, 200)
-Stroke.Thickness = 2
+MinLogo.Name = "MinimizeLogo"; MinLogo.Size = UDim2.new(0, 50, 0, 50)
+MinLogo.Position = UDim2.new(0, 20, 0.5, -25); MinLogo.BackgroundColor3 = Color3.fromRGB(15, 15, 20)
+MinLogo.Visible = false; Instance.new("UICorner", MinLogo).CornerRadius = UDim.new(0, 10)
+local Stroke = Instance.new("UIStroke", MinLogo); Stroke.Color = Color3.fromRGB(0, 255, 200)
 
 local MinText = Instance.new("TextLabel", MinLogo)
-MinText.Size = UDim2.new(1, 0, 1, 0); MinText.BackgroundTransparency = 1
-MinText.Text = "A"; MinText.TextColor3 = Color3.fromRGB(0, 255, 200)
-MinText.Font = Enum.Font.GothamBold; MinText.TextSize = 25
+MinText.Size = UDim2.new(1, 0, 1, 0); MinText.BackgroundTransparency = 1; MinText.Text = "A"
+MinText.TextColor3 = Color3.fromRGB(0, 255, 200); MinText.Font = 3; MinText.TextSize = 25
 
--- Tombol Minimize di Header (Sebelah Tombol X)
+-- Tombol Minimize di dalam Menu (Sebelah X)
 local MinBtn = Instance.new("TextButton", Main)
-MinBtn.Size = UDim2.new(0, 30, 0, 30)
-MinBtn.Position = UDim2.new(1, -70, 0, 5) -- PAS DI KIRI TOMBOL X
+MinBtn.Size = UDim2.new(0, 30, 0, 30); MinBtn.Position = UDim2.new(1, -70, 0, 5)
 MinBtn.Text = "-"; MinBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
 MinBtn.BackgroundTransparency = 1; MinBtn.TextSize = 35
 
-MinBtn.MouseButton1Click:Connect(function()
-    Main.Visible = false; MinLogo.Visible = true
-end)
-
-MinLogo.MouseButton1Click:Connect(function()
-    Main.Visible = true; MinLogo.Visible = false
-end)
-
--- Draggable untuk Logo Kecil
-local dToggle, dStart, sPos
-MinLogo.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-        dToggle = true; dStart = input.Position; sPos = MinLogo.Position
-    end
-end)
-UIS.InputChanged:Connect(function(input)
-    if dToggle and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
-        local delta = input.Position - dStart
-        MinLogo.Position = UDim2.new(sPos.X.Scale, sPos.X.Offset + delta.X, sPos.Y.Scale, sPos.Y.Offset + delta.Y)
-    end
-end)
-UIS.InputEnded:Connect(function(input) if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then dToggle = false end end)
+MinBtn.MouseButton1Click:Connect(function() Main.Visible = false; MinLogo.Visible = true end)
+MinLogo.MouseButton1Click:Connect(function() Main.Visible = true; MinLogo.Visible = false end)
 
 -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
--- DRAGGABLE MAIN MENU
+-- 3. DATA & LOGIC PBNB
 -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
-local dragToggle, dragStart, startPos
-Main.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-        dragToggle = true; dragStart = input.Position; startPos = Main.Position
-    end
-end)
-UIS.InputChanged:Connect(function(input)
-    if dragToggle and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
-        local delta = input.Position - dragStart
-        Main.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
-    end
-end)
-UIS.InputEnded:Connect(function(input) if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then dragToggle = false end end)
+_G.AutoPBNB = false; _G.SelectedTargets = {}; _G.SelectedBlockID = 5; _G.HitAmount = 3
 
--- Header & Status
+local function GetCurrentGrid()
+    local Char = Player.Character
+    if not Char then return Vector2.new(0,0) end
+    local Root = Char:FindFirstChild("HumanoidRootPart")
+    if Root then
+        return Vector2.new(math.floor(Root.Position.X / 4.5 + 0.5), math.floor(Root.Position.Y / 4.5 + 0.5))
+    end
+    return Vector2.new(0,0)
+end
+
+task.spawn(function()
+    while true do
+        if _G.AutoPBNB and #_G.SelectedTargets > 0 then
+            local currentPos = GetCurrentGrid()
+            for _, offset in pairs(_G.SelectedTargets) do
+                if not _G.AutoPBNB then break end
+                pcall(function() PlaceRemote:FireServer(Vector2.new(currentPos.X + offset.X, currentPos.Y + offset.Y), tonumber(_G.SelectedBlockID)) end)
+            end
+            task.wait(0.1)
+            for h = 1, _G.HitAmount do
+                if not _G.AutoPBNB then break end
+                for _, offset in pairs(_G.SelectedTargets) do
+                    if not _G.AutoPBNB then break end
+                    pcall(function() FistRemote:FireServer(Vector2.new(currentPos.X + offset.X, currentPos.Y + offset.Y)) end)
+                    task.wait(0.05)
+                end
+            end
+        end
+        task.wait(0.1)
+    end
+end)
+
+-- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
+-- 4. LANJUTAN UI (Header, Grid, Buttons)
+-- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
 local Title = Instance.new("TextLabel", Main); Title.Size = UDim2.new(1, 0, 0, 40)
-Title.Text = "ALPHA PROJECT FINAL"; Title.TextColor3 = Color3.fromRGB(0, 255, 200)
-Title.Font = 3; Title.BackgroundTransparency = 1
+Title.Text = "ALPHA PROJECT FINAL"; Title.TextColor3 = Color3.fromRGB(0, 255, 200); Title.BackgroundTransparency = 1
 
--- SISA KODE PBNB ENGINE & INPUTS (SAMA SEPERTI SEBELUMNYA)
--- ... [Tambahkan bagian GetCurrentGrid, PBNB Engine, dan Inputs di bawah sini] ...
+local InputFrame = Instance.new("Frame", Main); InputFrame.Size = UDim2.new(1, -40, 0, 40)
+InputFrame.Position = UDim2.new(0, 20, 0, 85); InputFrame.BackgroundTransparency = 1
 
--- Close Button (Tetap di paling bawah agar menumpuk paling atas secara visual)
+local function CreateInp(text, pos, size, defaultValue, globalVar)
+    local i = Instance.new("TextBox", InputFrame); i.Size = size; i.Position = pos
+    i.Text = tostring(defaultValue); i.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
+    i.TextColor3 = Color3.fromRGB(255, 255, 255); Instance.new("UICorner", i)
+    i.FocusLost:Connect(function() _G[globalVar] = tonumber(i.Text) or defaultValue end)
+    return i
+end
+
+CreateInp("ID", UDim2.new(0,0,0,0), UDim2.new(0, 210, 1, 0), 5, "SelectedBlockID")
+CreateInp("Hits", UDim2.new(0, 230, 0, 0), UDim2.new(0, 210, 1, 0), 3, "HitAmount")
+
+local GridBox = Instance.new("Frame", Main); GridBox.Size = UDim2.new(0, 220, 0, 220)
+GridBox.Position = UDim2.new(0, 20, 0, 140); GridBox.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
+Instance.new("UIGridLayout", GridBox).CellSize = UDim2.new(0, 40, 0, 40)
+
+for y = 2, -2, -1 do
+    for x = -2, 2 do
+        local b = Instance.new("TextButton", GridBox); b.Text = (x == 0 and y == 0) and "ME" or x..","..y
+        b.BackgroundColor3 = (x == 0 and y == 0) and Color3.fromRGB(0, 150, 255) or Color3.fromRGB(45, 45, 50)
+        Instance.new("UICorner", b); b.TextColor3 = Color3.fromRGB(255,255,255)
+        if x ~= 0 or y ~= 0 then
+            local act = false
+            b.MouseButton1Click:Connect(function()
+                act = not act
+                if act then table.insert(_G.SelectedTargets, {X = x, Y = y}); b.BackgroundColor3 = Color3.fromRGB(0, 255, 200)
+                else for i, v in pairs(_G.SelectedTargets) do if v.X == x and v.Y == y then table.remove(_G.SelectedTargets, i) end end b.BackgroundColor3 = Color3.fromRGB(45, 45, 50) end
+            end)
+        end
+    end
+end
+
+local Side = Instance.new("Frame", Main); Side.Size = UDim2.new(0, 220, 0, 220)
+Side.Position = UDim2.new(0, 260, 0, 140); Side.BackgroundTransparency = 1
+Instance.new("UIListLayout", Side).Padding = UDim.new(0, 10)
+
+local function MakeBtn(txt, cb)
+    local b = Instance.new("TextButton", Side); b.Size = UDim2.new(1, 0, 0, 60)
+    b.Text = txt; b.BackgroundColor3 = Color3.fromRGB(40, 40, 45); b.TextColor3 = Color3.fromRGB(255, 255, 255); Instance.new("UICorner", b)
+    local s = false; b.MouseButton1Click:Connect(function() s = not s; b.BackgroundColor3 = s and Color3.fromRGB(0, 150, 150) or Color3.fromRGB(40, 40, 45); cb(s) end)
+end
+
+MakeBtn("START AUTO PBNB", function(v) _G.AutoPBNB = v end)
+MakeBtn("RESET TARGETS", function() _G.SelectedTargets = {} end)
+
 local Cls = Instance.new("TextButton", Main); Cls.Size = UDim2.new(0, 30, 0, 30)
 Cls.Position = UDim2.new(1, -35, 0, 5); Cls.Text = "X"; Cls.TextColor3 = Color3.fromRGB(255, 50, 50)
 Cls.BackgroundTransparency = 1; Cls.MouseButton1Click:Connect(function() ScreenGui:Destroy() end)
