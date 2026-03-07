@@ -115,10 +115,10 @@ task.spawn(function()
                 pcall(function()
                     PlaceRemote:FireServer(Vector2.new(tx, ty), tonumber(_G.SelectedBlockID))
                 end)
-                task.wait(0.08) -- Beri waktu server bernapas
+                task.wait(0.1) -- Beri waktu server bernapas
             end
             
-            task.wait(0.15) -- Jeda transisi Place ke Break
+            task.wait(0.5) -- Jeda transisi Place ke Break
 
             -- PHASE 2: BREAK (HIT CYCLE)
             for h = 1, (_G.HitAmount or 3) do
@@ -129,7 +129,7 @@ task.spawn(function()
                     pcall(function()
                         FistRemote:FireServer(Vector2.new(tx, ty))
                     end)
-                    task.wait(0.06) -- Kecepatan pukul
+                    task.wait(0.1) -- Kecepatan pukul
                 end
             end
         end
