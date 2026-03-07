@@ -38,43 +38,95 @@ local Theme = {
     SubText = Color3.fromRGB(160, 165, 175)
 }
 
--- [[ 1. SISTEM INVENTORY & DROPDOWN ]] --
--- Fungsi ini adalah "Sensor" untuk membaca inventory kamu.
--- KARENA STRUKTUR GAME BERBEDA-BEDA, SAYA BUATKAN DATA DUMMY DULU.
+-- [[ 1. SISTEM INVENTORY & DROPDOWN (REAL DATA) ]] --
+--- Fungsi untuk membaca tas pemain menggunakan Module bawaan game
 local function GetInventoryItems()
     local items = {}
-    -- CONTOH: Nanti kamu ganti bagian ini dengan logika for loop ke folder Inventory game kamu
-    items["Dirt Seed (ID: 5)"] = 5
-    items["Rock Block (ID: 10)"] = 10
-    items["Lava Seed (ID: 15)"] = 15
+    
+    -- Bungkus dengan pcall agar tidak error jika module lambat loading
+    pcall(function()
+        local RS = game:GetService("ReplicatedStorage")
+        local InventoryModule = require(RS.Modules.Inventory)
+        local ItemsManager = require(RS.Managers.ItemsManager)
+
+        -- Membaca semua slot di tas (Stacks)
+        for slotIndex, itemData in pairs(InventoryModule.Stacks) do
+            -- Pastikan slot tersebut ada isinya (ada ID-nya)
+            if type(itemData) == "table" and itemData.Id then
+                local realID = itemData.Id
+                local amount = itemData.Amount or 1
+                
+                -- Minta nama asli item tersebut ke ItemsManager
+                local dataInfo = ItemsManager.RequestItemData(realID)
+                local realName = dataInfo and dataInfo.Name or ("Unknown Item ("..realID..")")
+                
+                -- Hanya masukkan jika belum ada di list (mencegah duplikat di dropdown)
+                local displayName = realName .. " (x" .. amount .. ")"
+                if not items[realName] then
+                    items[displayName] = realID
+                end
+            end
+        end
+    end)
+    
+    -- Jika tas kosong atau script belum siap, beri satu opsi default
+    if next(items) == nil then
+        items["No Items Found / Loading..."] = 0
+    end
+    
     return items
 end
 
+-- UI Dropdown
 local DropdownFrame = Instance.new("Frame", Page)
 DropdownFrame.Size = UDim2.new(1, -10, 0, 35); DropdownFrame.BackgroundColor3 = Theme.Item; Instance.new("UICorner", DropdownFrame)
+
 local DropBtn = Instance.new("TextButton", DropdownFrame)
-DropBtn.Size = UDim2.new(1, 0, 1, 0); DropBtn.BackgroundTransparency = 1; DropBtn.Text = "Select Block to Farm ▼"
+DropBtn.Size = UDim2.new(1, 0, 1, 0); DropBtn.BackgroundTransparency = 1; DropBtn.Text = "Refresh & Select Block ▼"
 DropBtn.TextColor3 = Theme.Accent; DropBtn.Font = Enum.Font.GothamBold; DropBtn.TextSize = 12
 
 local DropList = Instance.new("ScrollingFrame", Page)
-DropList.Size = UDim2.new(1, -10, 0, 100); DropList.BackgroundColor3 = Theme.Item; DropList.Visible = false
+DropList.Size = UDim2.new(1, -10, 0, 150); DropList.BackgroundColor3 = Theme.Item; DropList.Visible = false
 DropList.BorderSizePixel = 0; DropList.ScrollBarThickness = 2; Instance.new("UICorner", DropList)
 local DropLayout = Instance.new("UIListLayout", DropList); DropLayout.Padding = UDim.new(0, 2)
+DropList.ZIndex = 5 -- Supaya tidak tertimpa UI bawahnya
 
--- Isi Dropdown
-for name, id in pairs(GetInventoryItems()) do
-    local ItemBtn = Instance.new("TextButton", DropList)
-    ItemBtn.Size = UDim2.new(1, 0, 0, 25); ItemBtn.BackgroundColor3 = Theme.Main; ItemBtn.Text = name
-    ItemBtn.TextColor3 = Theme.Text; ItemBtn.Font = Enum.Font.Gotham; ItemBtn.TextSize = 11; Instance.new("UICorner", ItemBtn)
+-- Fungsi untuk mengisi/me-refresh daftar item
+local function RefreshDropdown()
+    -- Hapus daftar lama
+    for _, child in pairs(DropList:GetChildren()) do
+        if child:IsA("TextButton") then child:Destroy() end
+    end
     
-    ItemBtn.MouseButton1Click:Connect(function()
-        _G.Farm_BlockID = id
-        DropBtn.Text = "Selected: " .. name .. " ▼"
-        DropList.Visible = false
-    end)
+    -- Isi dengan data tas yang baru
+    for displayName, id in pairs(GetInventoryItems()) do
+        local ItemBtn = Instance.new("TextButton", DropList)
+        ItemBtn.Size = UDim2.new(1, 0, 0, 25); ItemBtn.BackgroundColor3 = Theme.Main; ItemBtn.Text = " " .. displayName
+        ItemBtn.TextColor3 = Theme.Text; ItemBtn.Font = Enum.Font.Gotham; ItemBtn.TextSize = 11; Instance.new("UICorner", ItemBtn)
+        ItemBtn.TextXAlignment = Enum.TextXAlignment.Left
+        ItemBtn.ZIndex = 6
+        
+        ItemBtn.MouseButton1Click:Connect(function()
+            _G.Farm_BlockID = id
+            DropBtn.Text = "Selected: " .. displayName .. " ▼"
+            DropList.Visible = false
+        end)
+    end
+    
+    -- Sesuaikan tinggi box scroll sesuai jumlah item
+    DropList.CanvasSize = UDim2.new(0, 0, 0, DropLayout.AbsoluteContentSize.Y + 5)
 end
 
-DropBtn.MouseButton1Click:Connect(function() DropList.Visible = not DropList.Visible end)
+-- Klik tombol dropdown: Refresh tas dulu, baru munculkan list
+DropBtn.MouseButton1Click:Connect(function() 
+    if not DropList.Visible then
+        RefreshDropdown()
+    end
+    DropList.Visible = not DropList.Visible 
+end)
+
+-- Panggil refresh sekali saat UI pertama kali terbuka
+RefreshDropdown()
 
 -- [[ 3 & 4. SETTINGS: DELAY & HIT COUNT ]] --
 local function CreateSetting(label, defaultVal, globalVar)
