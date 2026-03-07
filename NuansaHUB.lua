@@ -56,6 +56,59 @@ Title.Text = "ALPHA PROJECT"; Title.Font = Enum.Font.GothamBlack; Title.TextColo
 Title.Size = UDim2.new(0.5, 0, 1, 0); Title.Position = UDim2.new(0, 15, 0, 0)
 Title.BackgroundTransparency = 1; Title.TextXAlignment = Enum.TextXAlignment.Left; Title.ZIndex = 3
 
+-- 4. Bikin Segitiga Resize di Pojok Kanan Bawah
+local ResizeHandle = Instance.new("TextButton", Main)
+ResizeHandle.Name = "ResizeHandle"
+ResizeHandle.Size = UDim2.new(0, 20, 0, 20)
+ResizeHandle.Position = UDim2.new(1, -20, 1, -20)
+ResizeHandle.BackgroundTransparency = 1
+ResizeHandle.Text = "◢" -- Simbol segitiga pojok
+ResizeHandle.TextColor3 = Theme.Accent
+ResizeHandle.TextSize = 18
+ResizeHandle.ZIndex = 10
+ResizeHandle.Font = Enum.Font.GothamBold
+
+-- 5. Logika Fungsi Resize
+local function MakeResizable(frame, handle)
+    local dragging = false
+    local dragStart = nil
+    local startSize = nil
+
+    handle.InputBegan:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = true
+            dragStart = input.Position
+            startSize = frame.Size
+        end
+    end)
+
+    UIS.InputChanged:Connect(function(input)
+        if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+            local delta = input.Position - dragStart
+            
+            -- Hitung ukuran baru
+            local newWidth = startSize.X.Offset + delta.X
+            local newHeight = startSize.Y.Offset + delta.Y
+            
+            -- Beri batas minimal agar UI tidak terlalu kecil (Clamp)
+            if newWidth < 400 then newWidth = 400 end
+            if newHeight < 250 then newHeight = 250 end
+            
+            -- Terapkan ukuran
+            frame.Size = UDim2.new(0, newWidth, 0, newHeight)
+        end
+    end)
+
+    UIS.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = false
+        end
+    end)
+end
+
+-- Terapkan fungsi ke Main Frame melalui handle segitiga
+MakeResizable(Main, ResizeHandle)
+
 -- [[ TOMBOL MINIMIZE & CLOSE ]] --
 -- Close (X)
 local CloseBtn = Instance.new("TextButton", Header)
