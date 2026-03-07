@@ -146,43 +146,40 @@ local function GetCurrentGrid()
     return Root and Vector2.new(math.floor(Root.Position.X / 4.5 + 0.5), math.floor(Root.Position.Y / 4.5 + 0.5)) or Vector2.new(0,0)
 end
 
-local function CheckBlockAt(tx, ty)
-    local checkPos = Vector3.new(tx * 4.5, ty * 4.5, 0) 
-    local checkSize = Vector3.new(2, 2, 5) 
-    local params = OverlapParams.new(); params.FilterType = Enum.RaycastFilterType.Exclude; params.FilterDescendantsInstances = {LP.Character}
-    return #workspace:GetPartBoundsInBox(CFrame.new(checkPos), checkSize, params) > 0
-end
-
 task.spawn(function()
     while true do
         if _G.Farm_Active and #_G.Farm_Targets > 0 then
             local cp = GetCurrentGrid()
             
-            -- PHASE 1: PLACE
+            -- PHASE 1: FORCE PLACE (Langsung taruh blok di semua target yang dipilih)
             for _, o in ipairs(_G.Farm_Targets) do
                 if not _G.Farm_Active then break end
                 local tx, ty = math.floor(cp.X + o.X), math.floor(cp.Y + o.Y)
-                if not CheckBlockAt(tx, ty) then
-                    pcall(function() PlaceRemote:FireServer(Vector2.new(tx, ty), _G.Farm_BlockID) end)
-                    task.wait(_G.Farm_PlaceDelay) -- Menggunakan input Delay Place
-                end
+                
+                pcall(function() 
+                    PlaceRemote:FireServer(Vector2.new(tx, ty), _G.Farm_BlockID) 
+                end)
+                task.wait(_G.Farm_PlaceDelay) -- Menggunakan delay yang kamu atur di UI
             end
             
-            task.wait(0.2) -- Jeda aman transisi
+            -- JEDA TRANSISI: Beri waktu agak lama (0.4s) agar server memunculkan blok fisik
+            task.wait(0.4) 
             
-            -- PHASE 2: BREAK
-            for i = 1, _G.Farm_HitCount do -- Menggunakan input Hit Count
+            -- PHASE 2: FORCE BREAK (Langsung pukul kotak tersebut tanpa cek sensor)
+            for i = 1, _G.Farm_HitCount do
                 if not _G.Farm_Active then break end
                 for _, o in ipairs(_G.Farm_Targets) do
                     if not _G.Farm_Active then break end
                     local tx, ty = math.floor(cp.X + o.X), math.floor(cp.Y + o.Y)
-                    if CheckBlockAt(tx, ty) then
-                        pcall(function() FistRemote:FireServer(Vector2.new(tx, ty)) end)
-                        task.wait(_G.Farm_HitDelay) -- Menggunakan input Delay Hit
-                    end
+                    
+                    pcall(function() 
+                        FistRemote:FireServer(Vector2.new(tx, ty)) 
+                    end)
+                    task.wait(_G.Farm_HitDelay) -- Menggunakan delay pukul yang kamu atur di UI
                 end
             end
         end
+        -- Jeda sebelum memulai siklus PBNB baru
         task.wait(0.1)
     end
 end)
