@@ -38,7 +38,6 @@ local function GetCurrentGrid()
 end
 
 -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
--- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
 -- STABLE PBNB ENGINE (SYSTEM: PLACE ALL -> HIT CYCLE)
 -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
 task.spawn(function()
@@ -47,7 +46,7 @@ task.spawn(function()
             local currentPos = GetCurrentGrid()
             
             -- 1. TAHAP PEMASANGAN (PLACE)
-            -- Pasang semua blok di target yang dipilih terlebih dahulu
+            -- Pasang blok di SEMUA target yang dipilih terlebih dahulu
             for _, offset in pairs(_G.SelectedTargets) do
                 if not _G.AutoPBNB then break end
                 local finalTarget = Vector2.new(currentPos.X + offset.X, currentPos.Y + offset.Y)
@@ -58,14 +57,14 @@ task.spawn(function()
                 end)
             end
             
-            task.wait(0.1) -- Jeda singkat setelah semua terpasang
+            task.wait(0.1) -- Jeda singkat agar server memproses pemasangan
 
             -- 2. TAHAP PEMUKULAN (HIT CYCLE)
-            -- Ulangi sebanyak jumlah HitAmount yang ditentukan
+            -- Melakukan putaran pukulan sebanyak HitAmount
             for h = 1, (_G.HitAmount or 3) do
                 if not _G.AutoPBNB then break end
                 
-                -- Pukul setiap target 1 kali dalam satu putaran
+                -- Di setiap putaran, pukul setiap blok 1 kali
                 for _, offset in pairs(_G.SelectedTargets) do
                     if not _G.AutoPBNB then break end
                     local finalTarget = Vector2.new(currentPos.X + offset.X, currentPos.Y + offset.Y)
@@ -74,7 +73,7 @@ task.spawn(function()
                     pcall(function()
                         FistRemote:FireServer(cleanTarget)
                     end)
-                    task.wait(0.05) -- Jeda antar pukulan per blok agar tidak kick/error
+                    task.wait(0.05) -- Jeda antar pukulan agar stabil
                 end
             end
         end
