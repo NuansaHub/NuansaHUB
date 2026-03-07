@@ -73,7 +73,7 @@ task.spawn(function()
                     pcall(function()
                         FistRemote:FireServer(cleanTarget)
                     end)
-                    task.wait(0.05) -- Jeda antar pukulan agar stabil
+                    task.wait(0.1) -- Jeda antar pukulan agar stabil
                 end
             end
         end
@@ -177,22 +177,38 @@ HitInp.FocusLost:Connect(function(enterPressed)
     end
 end)
 
--- Grid Selector
+-- Grid Selector (Updated for Stability)
 local GridBox = Instance.new("Frame", Main); GridBox.Size = UDim2.new(0, 220, 0, 220)
 GridBox.Position = UDim2.new(0, 20, 0, 140); GridBox.BackgroundColor3 = Color3.fromRGB(25, 25, 30)
 Instance.new("UIGridLayout", GridBox).CellSize = UDim2.new(0, 40, 0, 40)
 
 for y = 2, -2, -1 do
     for x = -2, 2 do
-        local b = Instance.new("TextButton", GridBox); b.Text = (x == 0 and y == 0) and "ME" or x..","..y
+        local b = Instance.new("TextButton", GridBox)
+        b.Text = (x == 0 and y == 0) and "ME" or x..","..y
         b.BackgroundColor3 = (x == 0 and y == 0) and Color3.fromRGB(0, 150, 255) or Color3.fromRGB(45, 45, 50)
         Instance.new("UICorner", b); b.TextColor3 = Color3.fromRGB(255,255,255)
+        
         if x ~= 0 or y ~= 0 then
             local act = false
             b.MouseButton1Click:Connect(function()
-                act = not act; if act then table.insert(_G.SelectedTargets, {X = x, Y = y}); b.BackgroundColor3 = Color3.fromRGB(0, 255, 200); b.TextColor3 = Color3.fromRGB(0,0,0) else
-                for i, v in pairs(_G.SelectedTargets) do if v.X == x and v.Y == y then table.remove(_G.SelectedTargets, i) end end
-                b.BackgroundColor3 = Color3.fromRGB(45, 45, 50); b.TextColor3 = Color3.fromRGB(255,255,255) end
+                act = not act
+                if act then
+                    -- Pastikan simpan sebagai angka bulat (math.floor)
+                    table.insert(_G.SelectedTargets, {X = math.floor(x), Y = math.floor(y)})
+                    b.BackgroundColor3 = Color3.fromRGB(0, 255, 200)
+                    b.TextColor3 = Color3.fromRGB(0,0,0)
+                else
+                    -- Menghapus target dengan lebih akurat
+                    for i, v in ipairs(_G.SelectedTargets) do
+                        if v.X == x and v.Y == y then
+                            table.remove(_G.SelectedTargets, i)
+                            break -- Berhenti setelah ketemu agar tidak merusak indeks loop
+                        end
+                    end
+                    b.BackgroundColor3 = Color3.fromRGB(45, 45, 50)
+                    b.TextColor3 = Color3.fromRGB(255,255,255)
+                end
             end)
         end
     end
