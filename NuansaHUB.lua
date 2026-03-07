@@ -191,6 +191,7 @@ local function AddTab(name)
     local bStroke = Instance.new("UIStroke", TabBtn); bStroke.Color = Theme.Accent; bStroke.Transparency = 0.8
 
     local Page = Instance.new("ScrollingFrame", PageHolder)
+    Page.Name = name .. "Page" -- [!] INI YANG DITAMBAHKAN AGAR BISA DITEMUKAN AUTOFARM
     Page.Size = UDim2.new(1, 0, 1, 0); Page.Visible = false; Page.BackgroundTransparency = 1; Page.BorderSizePixel = 0; Page.ScrollBarThickness = 2; Page.ScrollBarImageColor3 = Theme.Accent; Page.ZIndex = 3
     Instance.new("UIListLayout", Page).Padding = UDim.new(0, 8)
 
@@ -224,9 +225,23 @@ local function AddModule(parentPage, title, desc, rawLink)
 
     Btn.MouseButton1Click:Connect(function()
         Btn.Text = "Loading..."
-        pcall(function() loadstring(game:HttpGet(rawLink))() end)
-        task.wait(1); Btn.Text = "Executed ✅"
-        task.wait(1); Btn.Text = "EXECUTE"
+        
+        -- Gunakan task.spawn agar UI tidak freeze saat loading
+        task.spawn(function()
+            local success, err = pcall(function() 
+                loadstring(game:HttpGet(rawLink))() 
+            end)
+            
+            if success then
+                Btn.Text = "Executed ✅"
+            else
+                Btn.Text = "Error ❌"
+                warn("ALPHA PROJECT ERROR: " .. tostring(err)) -- Muncul di F9
+            end
+            
+            task.wait(1.5)
+            Btn.Text = "EXECUTE"
+        end)
     end)
 end
 
