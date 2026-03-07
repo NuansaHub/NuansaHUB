@@ -102,19 +102,43 @@ end
 task.spawn(function()
     while true do
         if _G.AutoPBNB and #_G.SelectedTargets > 0 then
-            local cp = GetCurrentGrid()
-            for _, o in pairs(_G.SelectedTargets) do
-                pcall(function() PlaceRemote:FireServer(Vector2.new(cp.X + o.X, cp.Y + o.Y), tonumber(_G.SelectedBlockID)) end)
+            local currentPos = GetCurrentGrid()
+            
+            -- TAHAP 1: PUT (PLACE)
+            -- Kita pasang di semua target satu per satu tanpa dipukul dulu
+            for _, offset in ipairs(_G.SelectedTargets) do
+                if not _G.AutoPBNB then break end
+                local target = Vector2.new(math.floor(currentPos.X + offset.X), math.floor(currentPos.Y + offset.Y))
+                
+                pcall(function()
+                    PlaceRemote:FireServer(target, tonumber(_G.SelectedBlockID))
+                end)
+                -- Jeda tipis antar pemasangan agar server tidak bingung
+                task.wait(0.05) 
             end
+            
+            -- JEDA TRANSISI
+            -- Memberi waktu server untuk meletakkan blok sebelum mulai dipukul
             task.wait(0.1)
-            for h = 1, _G.HitAmount do
-                for _, o in pairs(_G.SelectedTargets) do
+
+            -- TAHAP 2: BREAK (FIST CYCLE)
+            -- Melakukan siklus pukulan sebanyak HitAmount
+            for h = 1, (_G.HitAmount or 3) do
+                if not _G.AutoPBNB then break end
+                
+                for _, offset in ipairs(_G.SelectedTargets) do
                     if not _G.AutoPBNB then break end
-                    pcall(function() FistRemote:FireServer(Vector2.new(cp.X + o.X, cp.Y + o.Y)) end)
-                    task.wait(0.06)
+                    local target = Vector2.new(math.floor(currentPos.X + offset.X), math.floor(currentPos.Y + offset.Y))
+                    
+                    pcall(function()
+                        FistRemote:FireServer(target)
+                    end)
+                    -- Jeda antar pukulan per blok (sangat penting untuk kestabilan)
+                    task.wait(0.07) 
                 end
             end
         end
+        -- Jeda sebelum memulai cycle baru (menghindari spam berlebih)
         task.wait(0.1)
     end
 end)
