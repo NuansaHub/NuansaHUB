@@ -99,70 +99,62 @@ local function GetCurrentGrid()
     return Root and Vector2.new(math.floor(Root.Position.X / 4.5 + 0.5), math.floor(Root.Position.Y / 4.5 + 0.5)) or Vector2.new(0,0)
 end
 
--- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
--- SMART PBNB ENGINE (GRID-BASED DETECTION)
--- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
-
--- Fungsi untuk cek apakah ada blok di koordinat grid (X, Y)
-local function CheckBlockAt(tx, ty)
-    -- Kita asumsikan ukuran 1 blok grid adalah sekitar 4 sampai 4.5 unit
-    -- Kita cek di posisi 3D yang sesuai dengan koordinat grid tersebut
-    local checkPos = Vector3.new(tx * 4.5, ty * 4.5, 0) 
-    local checkSize = Vector3.new(2, 2, 5) -- Area deteksi kecil di tengah grid
-    
-    local params = OverlapParams.new()
-    params.FilterType = Enum.RaycastFilterType.Exclude
-    params.FilterDescendantsInstances = {Player.Character} -- Abaikan karakter kita sendiri
-    
-    local parts = workspace:GetPartBoundsInBox(CFrame.new(checkPos), checkSize, params)
-    
-    -- Jika ada Part yang ditemukan, berarti ada blok
-    return #parts > 0
-end
 
 task.spawn(function()
     while true do
+        -- Cek apakah tombol Start aktif dan ada koordinat yang dipilih
         if _G.AutoPBNB and #_G.SelectedTargets > 0 then
-            local targetsToProcess = {}
-            for _, v in ipairs(_G.SelectedTargets) do table.insert(targetsToProcess, v) end
             
+            -- Ambil koordinat player saat ini sebagai patokan grid
             local currentPos = GetCurrentGrid()
             
-            -- PHASE 1: PUT (Hanya pasang jika grid KOSONG)
-            for _, offset in ipairs(targetsToProcess) do
-                if not _G.AutoPBNB then break end
+            -- --- TAHAP 1: MELETAKKAN SEMUA BLOK (PUT PHASE) ---
+            -- Sama seperti "for index, target in CoordList" di AHK kamu
+            for _, offset in ipairs(_G.SelectedTargets) do
+                if not _G.AutoPBNB then break end -- Cek jika user stop di tengah jalan
+                
+                -- Hitung koordinat tujuan (Vector2)
                 local tx = math.floor(currentPos.X + offset.X)
                 local ty = math.floor(currentPos.Y + offset.Y)
-                
-                if not CheckBlockAt(tx, ty) then
-                    pcall(function()
-                        PlaceRemote:FireServer(Vector2.new(tx, ty), tonumber(_G.SelectedBlockID))
-                    end)
-                    task.wait(0.1) -- Jeda pasang
-                end
-            end
-            
-            task.wait(0.2) -- Jeda transisi
+                local targetVector2 = Vector2.new(tx, ty)
 
-            -- PHASE 2: BREAK (Hanya pukul jika grid ISI)
-            for h = 1, (_G.HitAmount or 3) do
+                -- Kirim perintah Taruh (PlayerPlaceItem)
+                pcall(function()
+                    -- [1] = Koordinat, [2] = ID Blok
+                    PlaceRemote:FireServer(targetVector2, tonumber(_G.SelectedBlockID))
+                end)
+                
+                -- Sleep(EditPut.Value) -> Kita ganti dengan task.wait
+                task.wait(0.12) 
+            end
+
+            -- Jeda singkat transisi (agar blok sempat muncul di server)
+            task.wait(0.2)
+
+            -- --- TAHAP 2: MENGHANCURKAN SEMUA BLOK (BREAK PHASE) ---
+            -- Di AHK kamu bisa menambahkan loop Klik di sini
+            for h = 1, (_G.HitAmount or 3) do -- Ulangi pukulan sebanyak HitAmount
                 if not _G.AutoPBNB then break end
-                for _, offset in ipairs(targetsToProcess) do
+                
+                for _, offset in ipairs(_G.SelectedTargets) do
                     if not _G.AutoPBNB then break end
+                    
                     local tx = math.floor(currentPos.X + offset.X)
                     local ty = math.floor(currentPos.Y + offset.Y)
+                    local targetVector2 = Vector2.new(tx, ty)
+
+                    -- Kirim perintah Pukul (PlayerFist)
+                    pcall(function()
+                        FistRemote:FireServer(targetVector2)
+                    end)
                     
-                    -- Hanya pukul jika sensor mendeteksi ada blok
-                    if CheckBlockAt(tx, ty) then
-                        pcall(function()
-                            FistRemote:FireServer(Vector2.new(tx, ty))
-                        end)
-                        task.wait(0.08) -- Jeda pukul
-                    end
+                    task.wait(0.08) -- Jeda antar pukulan (biar stabil)
                 end
             end
         end
-        task.wait(0.2)
+        
+        -- Jeda sebelum memulai siklus baru (mencegah lag)
+        task.wait(0.1)
     end
 end)
 
