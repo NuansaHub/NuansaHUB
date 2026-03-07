@@ -125,7 +125,7 @@ local Tab1 = AddTab("Home")
 local Tab2 = AddTab("Auto Farm")
 
 -- Contoh memasukkan script raw baru di tab Auto Farm
-AddModule(Tab2, "Main Autofarm", "Script auto farm batu & kayu versi terbaru.", "LINK_RAW_SCRIPT_AUTOFARM_KAMU_DISINI")
+AddModule(Tab2, "Main Autofarm", "Script auto farm batu & kayu versi terbaru.", "https://raw.githubusercontent.com/NuansaHub/NuansaHUB/refs/heads/main/AutoFarm.lua")
 
 -- Auto Open First Tab
 if Tabs[1] then Pages[1].Visible = true; Tabs[1].BackgroundColor3 = Theme.Accent; Tabs[1].TextColor3 = Theme.Main; Tabs[1].UIStroke.Transparency = 0 end
