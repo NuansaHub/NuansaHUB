@@ -1,17 +1,16 @@
--- [[ ALPHA PROJECT - OFFICIAL LOADER ]] --
--- GitHub: NuansaHub/NuansaHUB
+-- [[ ALPHA PROJECT - OFFICIAL LOADER V2 ]] --
 
 local CoreGui = game:GetService("CoreGui")
 local UIS = game:GetService("UserInputService")
 local TS = game:GetService("TweenService")
 local LP = game:GetService("Players").LocalPlayer
 
--- CLEANER: Hapus UI lama agar tidak menumpuk
+-- CLEANER
 if getgenv().AlphaProjectUI then getgenv().AlphaProjectUI:Destroy() end
 
 local Theme = {
     Main = Color3.fromRGB(15, 17, 20),
-    Accent = Color3.fromRGB(0, 255, 220), -- Neon Cyan Alpha
+    Accent = Color3.fromRGB(0, 255, 220), 
     Header = Color3.fromRGB(10, 12, 14),
     Item = Color3.fromRGB(25, 28, 32),
     Text = Color3.fromRGB(240, 245, 255),
@@ -23,6 +22,20 @@ local ScreenGui = Instance.new("ScreenGui", CoreGui)
 ScreenGui.Name = "AlphaProject_Main"
 ScreenGui.ResetOnSpawn = false
 getgenv().AlphaProjectUI = ScreenGui
+
+-- Logo Kecil (Muncul saat Minimize)
+local AlphaLogo = Instance.new("TextButton", ScreenGui)
+AlphaLogo.Size = UDim2.new(0, 50, 0, 50)
+AlphaLogo.BackgroundColor3 = Theme.Main
+AlphaLogo.Position = UDim2.new(0, 50, 0, 50) -- Bisa digeser sesuka hati
+AlphaLogo.Text = "A"
+AlphaLogo.TextColor3 = Theme.Accent
+AlphaLogo.Font = Enum.Font.GothamBlack
+AlphaLogo.TextSize = 25
+AlphaLogo.Visible = false
+Instance.new("UICorner", AlphaLogo).CornerRadius = UDim.new(1, 0)
+local LogoStroke = Instance.new("UIStroke", AlphaLogo)
+LogoStroke.Color = Theme.Accent; LogoStroke.Thickness = 2
 
 local Main = Instance.new("Frame", ScreenGui)
 Main.BackgroundColor3 = Theme.Main
@@ -43,8 +56,34 @@ Instance.new("UICorner", Header).CornerRadius = UDim.new(0, 10)
 local Title = Instance.new("TextLabel", Header)
 Title.Text = "ALPHA PROJECT"
 Title.Font = Enum.Font.GothamBlack; Title.TextColor3 = Theme.Accent; Title.TextSize = 18
-Title.Size = UDim2.new(1, 0, 1, 0); Title.Position = UDim2.new(0, 15, 0, 0)
+Title.Size = UDim2.new(0.5, 0, 1, 0); Title.Position = UDim2.new(0, 15, 0, 0)
 Title.BackgroundTransparency = 1; Title.TextXAlignment = Enum.TextXAlignment.Left
+
+-- [[ HEADER CONTROLS (NEW) ]] --
+local Controls = Instance.new("Frame", Header)
+Controls.Size = UDim2.new(0, 75, 1, 0)
+Controls.Position = UDim2.new(1, -80, 0, 0)
+Controls.BackgroundTransparency = 1
+
+local ControlLayout = Instance.new("UIListLayout", Controls)
+ControlLayout.FillDirection = Enum.FillDirection.Horizontal
+ControlLayout.HorizontalAlignment = Enum.HorizontalAlignment.Right
+ControlLayout.VerticalAlignment = Enum.VerticalAlignment.Center
+ControlLayout.Padding = UDim.new(0, 5)
+
+-- Tombol Close
+local CloseBtn = Instance.new("TextButton", Controls)
+CloseBtn.Size = UDim2.new(0, 30, 0, 30)
+CloseBtn.BackgroundColor3 = Color3.fromRGB(200, 50, 50)
+CloseBtn.Text = "×"; CloseBtn.TextColor3 = Color3.new(1,1,1); CloseBtn.Font = Enum.Font.GothamBold; CloseBtn.TextSize = 18
+Instance.new("UICorner", CloseBtn).CornerRadius = UDim.new(0, 6)
+
+-- Tombol Minimize
+local MinBtn = Instance.new("TextButton", Controls)
+MinBtn.Size = UDim2.new(0, 30, 0, 30)
+MinBtn.BackgroundColor3 = Theme.Item
+MinBtn.Text = "—"; MinBtn.TextColor3 = Theme.Text; MinBtn.Font = Enum.Font.GothamBold; MinBtn.TextSize = 12
+Instance.new("UICorner", MinBtn).CornerRadius = UDim.new(0, 6)
 
 -- Drag Function
 local function EnableDrag(frame, trigger)
@@ -63,6 +102,12 @@ local function EnableDrag(frame, trigger)
     end)
 end
 EnableDrag(Main, Header)
+EnableDrag(AlphaLogo, AlphaLogo) -- Logo juga bisa digeser
+
+-- Logic Buttons
+CloseBtn.MouseButton1Click:Connect(function() ScreenGui:Destroy(); getgenv().AlphaProjectUI = nil end)
+MinBtn.MouseButton1Click:Connect(function() Main.Visible = false; AlphaLogo.Visible = true end)
+AlphaLogo.MouseButton1Click:Connect(function() Main.Visible = true; AlphaLogo.Visible = false end)
 
 -- [[ NAVIGATION SYSTEM ]] --
 local TabHolder = Instance.new("ScrollingFrame", Main)
@@ -100,7 +145,7 @@ local function AddTab(name)
     return Page
 end
 
--- [[ MODULE LOADER (Untuk Script Raw Baru) ]] --
+-- [[ MODULE LOADER ]] --
 local function AddModule(parentPage, title, desc, rawLink)
     local Frame = Instance.new("Frame", parentPage)
     Frame.Size = UDim2.new(1, -10, 0, 70); Frame.BackgroundColor3 = Theme.Item; Instance.new("UICorner", Frame)
@@ -124,7 +169,6 @@ end
 local Tab1 = AddTab("Home")
 local Tab2 = AddTab("Auto Farm")
 
--- Contoh memasukkan script raw baru di tab Auto Farm
 AddModule(Tab2, "Main Autofarm", "Script auto farm batu & kayu versi terbaru.", "https://raw.githubusercontent.com/NuansaHub/NuansaHUB/refs/heads/main/AutoFarm.lua")
 
 -- Auto Open First Tab
