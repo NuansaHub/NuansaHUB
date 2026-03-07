@@ -38,36 +38,54 @@ local function GetCurrentGrid()
 end
 
 -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
--- FEATURE: CUSTOM NAME TAG (COORDINATE NEXT TO NAME)
+-- FEATURE: REALISTIC NAME VISUAL (WHITE COLOR WITH COORDS)
 -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
-local function CreateNameTag(char)
+local function CreateRealisticTag(char)
     local head = char:WaitForChild("Head", 5)
     local hum = char:WaitForChild("Humanoid", 5)
     if not head or not hum then return end
 
+    -- 1. HILANGKAN NAMA ASLI (Warna Putih Bawaan)
     hum.DisplayDistanceType = Enum.HumanoidDisplayDistanceType.None
-    if head:FindFirstChild("CustomGridTag") then head.CustomGridTag:Destroy() end
 
+    -- 2. Hapus tag lama jika ada
+    if head:FindFirstChild("AlphaProjectTag") then head.AlphaProjectTag:Destroy() end
+
+    -- 3. BUAT TAG BARU (Visual Mirip Nama Putih Asli)
     local bbg = Instance.new("BillboardGui", head)
-    bbg.Name = "CustomGridTag"; bbg.Size = UDim2.new(0, 200, 0, 50)
-    bbg.StudsOffset = Vector3.new(0, 2.5, 0); bbg.AlwaysOnTop = true
+    bbg.Name = "AlphaProjectTag"
+    bbg.Size = UDim2.new(0, 200, 0, 50)
+    bbg.StudsOffset = Vector3.new(0, 2.5, 0) -- Posisi tepat di atas kepala
+    bbg.AlwaysOnTop = true
 
     local lbl = Instance.new("TextLabel", bbg)
-    lbl.Size = UDim2.new(1, 0, 1, 0); lbl.BackgroundTransparency = 1
-    lbl.TextColor3 = Color3.fromRGB(0, 255, 180); lbl.Font = Enum.Font.GothamBold
-    lbl.TextSize = 14; lbl.TextStrokeTransparency = 0.5
+    lbl.Size = UDim2.new(1, 0, 1, 0)
+    lbl.BackgroundTransparency = 1
+    lbl.TextColor3 = Color3.fromRGB(255, 255, 255) -- WARNA PUTIH (Mirip Asli)
+    lbl.TextStrokeTransparency = 0.5 -- Outline tipis agar terbaca
+    lbl.Font = Enum.Font.GothamBold -- Font yang bersih
+    lbl.TextSize = 15
 
+    -- 4. Update Loop: Nama + [X, Y]
     task.spawn(function()
         while bbg.Parent do
-            local g = GetCurrentGrid()
-            lbl.Text = Player.DisplayName .. " [" .. g.X .. ", " .. g.Y .. "]"
-            task.wait(0.3)
+            local g_X, g_Y = 0, 0
+            -- Ambil koordinat (menggunakan rumus dari source game yang kamu kirim)
+            local root = char:FindFirstChild("HumanoidRootPart")
+            if root then
+                g_X = math.floor(root.Position.X / 4.5 + 0.5)
+                g_Y = math.floor(root.Position.Y / 4.5 + 0.5)
+            end
+            
+            -- TAMPILAN: NamaPlayer [X, Y]
+            lbl.Text = Player.DisplayName .. " [" .. g_X .. ", " .. g_Y .. "]"
+            task.wait(0.4)
         end
     end)
 end
 
-if Player.Character then CreateNameTag(Player.Character) end
-Player.CharacterAdded:Connect(CreateNameTag)
+if Player.Character then CreateRealisticTag(Player.Character) end
+Player.CharacterAdded:Connect(CreateRealisticTag)
 
 -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
 -- STABLE PBNB ENGINE
