@@ -28,7 +28,7 @@ _G.Farm_BlockID = 5       -- Default ID
 _G.Farm_PlaceDelay = 0.15 -- Default Delay Place
 _G.Farm_HitDelay = 0.08   -- Default Delay Hit
 _G.Farm_HitCount = 3      -- Default Hit
-_G.Farm_BlockName = "" -- Sekarang kita pakai teks kosong sebagai default
+_G.Farm_BlockID = 0 -- Default ID
 _G.Farm_Targets = {}
 
 local Theme = {
@@ -39,7 +39,7 @@ local Theme = {
     SubText = Color3.fromRGB(160, 165, 175)
 }
 
--- [[ 1. SISTEM INVENTORY & DROPDOWN (REAL DATA) ]] --
+-- [[ 1. SISTEM INVENTORY & DROPDOWN (REAL DATA - USE ID) ]] --
 local function GetInventoryItems()
     local items = {}
     
@@ -50,28 +50,24 @@ local function GetInventoryItems()
 
         for slotIndex, itemData in pairs(InventoryModule.Stacks) do
             if type(itemData) == "table" and itemData.Id then
-                local realID = itemData.Id
+                local realID = itemData.Id -- KITA AMBIL ID-NYA DI SINI
                 local amount = itemData.Amount or 1
                 
                 local dataInfo = ItemsManager.RequestItemData(realID)
-                if dataInfo and dataInfo.Name then
-                    local realName = dataInfo.Name
-                    -- Ubah nama jadi huruf kecil semua, misal "Dirt" -> "dirt"
-                    local internalName = string.lower(realName) 
-                    
-                    local displayName = realName .. " (x" .. amount .. ")"
-                    
-                    -- Kita simpan "internalName" sebagai value, bukan realID lagi
-                    if not items[displayName] then
-                        items[displayName] = internalName
-                    end
+                local realName = (dataInfo and dataInfo.Name) and dataInfo.Name or "Item ID: " .. tostring(realID)
+                
+                local displayName = realName .. " (x" .. amount .. ")"
+                
+                -- Kita simpan "realID" sebagai value
+                if not items[displayName] then
+                    items[displayName] = realID
                 end
             end
         end
     end)
     
     if next(items) == nil then
-        items["No Items Found / Loading..."] = ""
+        items["No Items Found / Loading..."] = 0
     end
     
     return items
@@ -97,8 +93,7 @@ local function RefreshDropdown()
         if child:IsA("TextButton") then child:Destroy() end
     end
     
-    -- Perhatikan: "internalName" menggantikan posisi "id"
-    for displayName, internalName in pairs(GetInventoryItems()) do
+    for displayName, id in pairs(GetInventoryItems()) do
         local ItemBtn = Instance.new("TextButton", DropList)
         ItemBtn.Size = UDim2.new(1, 0, 0, 25); ItemBtn.BackgroundColor3 = Theme.Main
         ItemBtn.Text = " " .. displayName; ItemBtn.TextColor3 = Theme.Text
@@ -106,8 +101,8 @@ local function RefreshDropdown()
         ItemBtn.TextXAlignment = Enum.TextXAlignment.Left; ItemBtn.ZIndex = 6
         
         ItemBtn.MouseButton1Click:Connect(function()
-            -- Simpan nama item ke variabel global
-            _G.Farm_BlockName = internalName 
+            -- Simpan ID ke variabel global
+            _G.Farm_BlockID = id 
             DropBtn.Text = "Selected: " .. displayName .. " ▼"
             DropList.Visible = false
         end)
@@ -189,7 +184,7 @@ StartBtn.MouseButton1Click:Connect(function()
     end
 end)
 
--- [[ ENGINE AUTO FARM ]] --
+-- [[ ENGINE AUTO FARM (FORCE PBNB) ]] --
 local function GetCurrentGrid()
     local Char = LP.Character
     local Root = Char and Char:FindFirstChild("HumanoidRootPart")
@@ -206,20 +201,18 @@ task.spawn(function()
                 if not _G.Farm_Active then break end
                 local tx, ty = math.floor(cp.X + o.X), math.floor(cp.Y + o.Y)
                 
-                -- Cek agar tidak mengirim teks kosong
-                if _G.Farm_BlockName ~= "" then 
+                if _G.Farm_BlockID ~= 0 then 
                     pcall(function() 
-                        -- Kirim NAMA BLOK (string), bukan ID
-                        PlaceRemote:FireServer(Vector2.new(tx, ty), _G.Farm_BlockName) 
+                        -- KIRIM ID ANGKA KE SERVER
+                        PlaceRemote:FireServer(Vector2.new(tx, ty), _G.Farm_BlockID) 
                     end)
                 end
                 task.wait(_G.Farm_PlaceDelay)
             end
             
-            -- JEDA TRANSISI: Beri waktu agak lama (0.4s) agar server memunculkan blok fisik
             task.wait(0.4) 
             
-            -- PHASE 2: FORCE BREAK (Langsung pukul kotak tersebut tanpa cek sensor)
+            -- PHASE 2: FORCE BREAK
             for i = 1, _G.Farm_HitCount do
                 if not _G.Farm_Active then break end
                 for _, o in ipairs(_G.Farm_Targets) do
@@ -229,11 +222,10 @@ task.spawn(function()
                     pcall(function() 
                         FistRemote:FireServer(Vector2.new(tx, ty)) 
                     end)
-                    task.wait(_G.Farm_HitDelay) -- Menggunakan delay pukul yang kamu atur di UI
+                    task.wait(_G.Farm_HitDelay)
                 end
             end
         end
-        -- Jeda sebelum memulai siklus PBNB baru
         task.wait(0.1)
     end
 end)
