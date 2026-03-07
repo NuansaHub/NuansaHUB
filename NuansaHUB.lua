@@ -165,17 +165,50 @@ end)
 local InputFrame = Instance.new("Frame", Main); InputFrame.Size = UDim2.new(1, -40, 0, 40)
 InputFrame.Position = UDim2.new(0, 20, 0, 85); InputFrame.BackgroundTransparency = 1
 
-local function CreateInp(text, pos, size)
-    local i = Instance.new("TextBox", InputFrame); i.Size = size; i.Position = pos
-    i.PlaceholderText = text; i.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
-    i.TextColor3 = Color3.fromRGB(255, 255, 255); Instance.new("UICorner", i)
+-- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
+-- SECTION: INPUT SYSTEM (ID BLOCK & HIT AMOUNT)
+-- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
+
+local function CreateInp(text, pos, size, defaultValue)
+    local i = Instance.new("TextBox", InputFrame)
+    i.Size = size
+    i.Position = pos
+    i.PlaceholderText = text
+    i.Text = tostring(defaultValue) -- Menampilkan angka default saat UI muncul
+    i.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
+    i.TextColor3 = Color3.fromRGB(255, 255, 255)
+    i.Font = Enum.Font.GothamBold
+    i.TextSize = 14
+    Instance.new("UICorner", i)
     return i
 end
 
-local IDInp = CreateInp("ID (Dirt=5)", UDim2.new(0,0,0,0), UDim2.new(0, 210, 1, 0))
-local HitInp = CreateInp("Hits (3)", UDim2.new(0, 230, 0, 0), UDim2.new(0, 210, 1, 0))
-IDInp.FocusLost:Connect(function() _G.SelectedBlockID = tonumber(IDInp.Text) or 5 end)
-HitInp.FocusLost:Connect(function() _G.HitAmount = tonumber(HitInp.Text) or 3 end)
+-- Membuat Box untuk ID Block
+local IDInp = CreateInp("ID (Dirt=5)", UDim2.new(0, 0, 0, 0), UDim2.new(0, 210, 1, 0), _G.SelectedBlockID)
+
+-- Membuat Box untuk Jumlah Pukulan (Hit)
+local HitInp = CreateInp("Hits (3)", UDim2.new(0, 230, 0, 0), UDim2.new(0, 210, 1, 0), _G.HitAmount)
+
+-- LOGIKA AGAR TERSAMBUNG KE ENGINE PBNB:
+IDInp.FocusLost:Connect(function(enterPressed)
+    local val = tonumber(IDInp.Text)
+    if val then
+        _G.SelectedBlockID = val
+        print("ID Block diubah ke: " .. val)
+    else
+        IDInp.Text = tostring(_G.SelectedBlockID) -- Balikin ke angka lama kalau yang diketik bukan angka
+    end
+end)
+
+HitInp.FocusLost:Connect(function(enterPressed)
+    local val = tonumber(HitInp.Text)
+    if val then
+        _G.HitAmount = val
+        print("Jumlah Hit diubah ke: " .. val)
+    else
+        HitInp.Text = tostring(_G.HitAmount) -- Balikin ke angka lama jika error
+    end
+end)
 
 -- Grid Selector
 local GridBox = Instance.new("Frame", Main); GridBox.Size = UDim2.new(0, 220, 0, 220)
