@@ -28,7 +28,7 @@ _G.Farm_BlockID = 5       -- Default ID
 _G.Farm_PlaceDelay = 0.15 -- Default Delay Place
 _G.Farm_HitDelay = 0.08   -- Default Delay Hit
 _G.Farm_HitCount = 3      -- Default Hit
-_G.Farm_BlockID = nil -- Default ID
+_G.Farm_SlotIndex = nil -- Default ID
 _G.Farm_Targets = {}
 
 local Theme = {
@@ -39,7 +39,7 @@ local Theme = {
     SubText = Color3.fromRGB(160, 165, 175)
 }
 
--- [[ 1. SISTEM INVENTORY & DROPDOWN (STRICT ID) ]] --
+-- [[ 1. SISTEM INVENTORY & DROPDOWN (SLOT INDEX MODE) ]] --
 local function GetInventoryItems()
     local items = {}
     
@@ -48,20 +48,21 @@ local function GetInventoryItems()
         local InventoryModule = require(RS.Modules.Inventory)
         local ItemsManager = require(RS.Managers.ItemsManager)
 
+        -- KITA MEMBACA KEY 'slotIndex' (Nomor kotak tas)
         for slotIndex, itemData in pairs(InventoryModule.Stacks) do
             if type(itemData) == "table" and itemData.Id then
-                local rawID = itemData.Id -- Ini akan mengambil angka aslinya (misal: 8)
                 local amount = itemData.Amount or 1
+                local itemStringID = itemData.Id 
                 
-                local dataInfo = ItemsManager.RequestItemData(rawID)
-                local realName = dataInfo and dataInfo.Name or "Unknown Item"
+                local dataInfo = ItemsManager.RequestItemData(itemStringID)
+                local realName = (dataInfo and dataInfo.Name) and dataInfo.Name or itemStringID
                 
-                -- Format tampilan baru: Dirt (x50) [ID: 8]
-                local displayName = realName .. " (x" .. amount .. ") [ID: " .. tostring(rawID) .. "]"
+                -- Tampilan Dropdown: Dirt (x50) [Slot: 12]
+                local displayName = realName .. " (x" .. amount .. ") [Slot: " .. tostring(slotIndex) .. "]"
                 
-                -- Kita simpan rawID (angka) sebagai value yang akan dikirim
+                -- KITA SIMPAN NOMOR SLOT-NYA! Inilah yang diminta server.
                 if not items[displayName] then
-                    items[displayName] = rawID
+                    items[displayName] = slotIndex
                 end
             end
         end
@@ -94,7 +95,7 @@ local function RefreshDropdown()
         if child:IsA("TextButton") then child:Destroy() end
     end
     
-    for displayName, id in pairs(GetInventoryItems()) do
+    for displayName, slotIndex in pairs(GetInventoryItems()) do
         local ItemBtn = Instance.new("TextButton", DropList)
         ItemBtn.Size = UDim2.new(1, 0, 0, 25); ItemBtn.BackgroundColor3 = Theme.Main
         ItemBtn.Text = " " .. displayName; ItemBtn.TextColor3 = Theme.Text
@@ -102,7 +103,8 @@ local function RefreshDropdown()
         ItemBtn.TextXAlignment = Enum.TextXAlignment.Left; ItemBtn.ZIndex = 6
         
         ItemBtn.MouseButton1Click:Connect(function()
-            _G.Farm_BlockID = id -- Menyimpan angka ID
+            -- Simpan Nomor Slot ke variabel
+            _G.Farm_SlotIndex = slotIndex 
             DropBtn.Text = "Selected: " .. displayName .. " ▼"
             DropList.Visible = false
         end)
@@ -184,7 +186,7 @@ StartBtn.MouseButton1Click:Connect(function()
     end
 end)
 
--- [[ ENGINE AUTO FARM (FORCE PBNB) ]] --
+-- [[ ENGINE AUTO FARM ]] --
 local function GetCurrentGrid()
     local Char = LP.Character
     local Root = Char and Char:FindFirstChild("HumanoidRootPart")
@@ -201,10 +203,11 @@ task.spawn(function()
                 if not _G.Farm_Active then break end
                 local tx, ty = math.floor(cp.X + o.X), math.floor(cp.Y + o.Y)
                 
-                if _G.Farm_BlockID ~= nil then 
+                -- Pastikan Slot sudah dipilih
+                if _G.Farm_SlotIndex ~= nil then 
                     pcall(function() 
-                        -- Kita paksa menjadi angka (tonumber) agar pasti terkirim sebagai integer, misal: 8
-                        PlaceRemote:FireServer(Vector2.new(tx, ty), tonumber(_G.Farm_BlockID) or _G.Farm_BlockID) 
+                        -- KIRIM NOMOR SLOT KE SERVER (Persis seperti script asli gamenya)
+                        PlaceRemote:FireServer(Vector2.new(tx, ty), _G.Farm_SlotIndex) 
                     end)
                 end
                 task.wait(_G.Farm_PlaceDelay)
