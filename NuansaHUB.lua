@@ -99,41 +99,79 @@ local function GetCurrentGrid()
     return Root and Vector2.new(math.floor(Root.Position.X / 4.5 + 0.5), math.floor(Root.Position.Y / 4.5 + 0.5)) or Vector2.new(0,0)
 end
 
+-- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
+-- SMART PBNB ENGINE (WITH BLOCK DETECTION)
+-- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
+
+-- Fungsi untuk mengecek apakah ada blok di koordinat tertentu
+local function IsBlockAt(targetVector2)
+    -- Kita buat Raycast kecil dari atas ke bawah di posisi target
+    local origin = Vector3.new(targetVector2.X * 4.5, (targetVector2.Y * 4.5) + 2, 0)
+    local direction = Vector3.new(0, -4, 0)
+    
+    local raycastResult = game.Workspace:Raycast(origin, direction)
+    
+    if raycastResult and raycastResult.Instance then
+        -- Jika terkena sesuatu, berarti ada blok
+        return true
+    end
+    return false
+end
+
 task.spawn(function()
     while true do
         if _G.AutoPBNB and #_G.SelectedTargets > 0 then
-            -- Ambil snapshot target agar urutan tidak berubah di tengah jalan
             local targetsToProcess = {}
             for _, v in ipairs(_G.SelectedTargets) do table.insert(targetsToProcess, v) end
             
             local currentPos = GetCurrentGrid()
             
-            -- PHASE 1: PLACE SEMUA KOTAK
+            -- PHASE 1: SMART PLACE (Hanya pasang jika KOSONG)
             for _, offset in ipairs(targetsToProcess) do
                 if not _G.AutoPBNB then break end
                 local tx, ty = math.floor(currentPos.X + offset.X), math.floor(currentPos.Y + offset.Y)
-                pcall(function()
-                    PlaceRemote:FireServer(Vector2.new(tx, ty), tonumber(_G.SelectedBlockID))
-                end)
-                task.wait(0.1) -- Beri waktu server bernapas
+                
+                -- Cek apakah kotak tersebut kosong?
+                if not IsBlockAt(Vector2.new(tx, ty)) then
+                    pcall(function()
+                        PlaceRemote:FireServer(Vector2.new(tx, ty), tonumber(_G.SelectedBlockID))
+                    end)
+                    task.wait(0.1)
+                end
             end
             
-            task.wait(0.5) -- Jeda transisi Place ke Break
+            task.wait(0.3) -- Jeda transisi
 
-            -- PHASE 2: BREAK (HIT CYCLE)
-            for h = 1, (_G.HitAmount or 3) do
-                if not _G.AutoPBNB then break end
+            -- PHASE 2: SMART BREAK (Hanya pukul jika ADA BLOK)
+            -- Kita akan terus memukul sampai semua target bersih
+            local allCleared = false
+            local hitCounter = 0
+            
+            while not allCleared and _G.AutoPBNB do
+                allCleared = true -- Asumsikan bersih dulu
+                hitCounter = hitCounter + 1
+                
                 for _, offset in ipairs(targetsToProcess) do
                     if not _G.AutoPBNB then break end
-                    local tx, ty = math.floor(currentPos.X + offset.X), math.floor(currentPos.Y + offset.Y)
-                    pcall(function()
-                        FistRemote:FireServer(Vector2.new(tx, ty))
-                    end)
-                    task.wait(0.1) -- Kecepatan pukul
+                    local tPos = Vector2.new(math.floor(currentPos.X + offset.X), math.floor(currentPos.Y + offset.Y))
+                    
+                    -- Cek apakah masih ada blok?
+                    if IsBlockAt(tPos) then
+                        allCleared = false -- Ternyata masih ada, jangan selesai dulu
+                        pcall(function()
+                            FistRemote:FireServer(tPos)
+                        end)
+                        task.wait(0.08)
+                    end
+                end
+                
+                -- Jika sudah mencapai batas HitAmount atau sudah bersih, keluar loop
+                if hitCounter >= (_G.HitAmount * 2) or allCleared then 
+                    break 
                 end
             end
         end
-        task.wait(0.2) -- Jeda antar cycle
+        task.wait(0.2)
     end
 end)
 
