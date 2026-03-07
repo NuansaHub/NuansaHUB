@@ -38,79 +38,47 @@ local function GetCurrentGrid()
 end
 
 -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
--- FEATURE: REALISTIC NAME VISUAL (WHITE COLOR WITH COORDS)
 -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
-local function CreateRealisticTag(char)
-    local head = char:WaitForChild("Head", 5)
-    local hum = char:WaitForChild("Humanoid", 5)
-    if not head or not hum then return end
-
-    -- 1. HILANGKAN NAMA ASLI (Warna Putih Bawaan)
-    hum.DisplayDistanceType = Enum.HumanoidDisplayDistanceType.None
-
-    -- 2. Hapus tag lama jika ada
-    if head:FindFirstChild("AlphaProjectTag") then head.AlphaProjectTag:Destroy() end
-
-    -- 3. BUAT TAG BARU (Visual Mirip Nama Putih Asli)
-    local bbg = Instance.new("BillboardGui", head)
-    bbg.Name = "AlphaProjectTag"
-    bbg.Size = UDim2.new(0, 200, 0, 50)
-    bbg.StudsOffset = Vector3.new(0, 2.5, 0) -- Posisi tepat di atas kepala
-    bbg.AlwaysOnTop = true
-
-    local lbl = Instance.new("TextLabel", bbg)
-    lbl.Size = UDim2.new(1, 0, 1, 0)
-    lbl.BackgroundTransparency = 1
-    lbl.TextColor3 = Color3.fromRGB(255, 255, 255) -- WARNA PUTIH (Mirip Asli)
-    lbl.TextStrokeTransparency = 0.5 -- Outline tipis agar terbaca
-    lbl.Font = Enum.Font.GothamBold -- Font yang bersih
-    lbl.TextSize = 15
-
-    -- 4. Update Loop: Nama + [X, Y]
-    task.spawn(function()
-        while bbg.Parent do
-            local g_X, g_Y = 0, 0
-            -- Ambil koordinat (menggunakan rumus dari source game yang kamu kirim)
-            local root = char:FindFirstChild("HumanoidRootPart")
-            if root then
-                g_X = math.floor(root.Position.X / 4.5 + 0.5)
-                g_Y = math.floor(root.Position.Y / 4.5 + 0.5)
-            end
-            
-            -- TAMPILAN: NamaPlayer [X, Y]
-            lbl.Text = Player.DisplayName .. " [" .. g_X .. ", " .. g_Y .. "]"
-            task.wait(0.4)
-        end
-    end)
-end
-
-if Player.Character then CreateRealisticTag(Player.Character) end
-Player.CharacterAdded:Connect(CreateRealisticTag)
-
--- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
--- STABLE PBNB ENGINE
+-- STABLE PBNB ENGINE (SYSTEM: PLACE ALL -> HIT CYCLE)
 -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --
 task.spawn(function()
     while true do
         if _G.AutoPBNB and #_G.SelectedTargets > 0 then
             local currentPos = GetCurrentGrid()
+            
+            -- 1. TAHAP PEMASANGAN (PLACE)
+            -- Pasang semua blok di target yang dipilih terlebih dahulu
             for _, offset in pairs(_G.SelectedTargets) do
                 if not _G.AutoPBNB then break end
                 local finalTarget = Vector2.new(currentPos.X + offset.X, currentPos.Y + offset.Y)
                 local cleanTarget = Vector2.new(math.floor(finalTarget.X), math.floor(finalTarget.Y))
-
+                
                 pcall(function()
                     PlaceRemote:FireServer(cleanTarget, tonumber(_G.SelectedBlockID))
-                    task.wait(0.1)
-                    for i = 1, _G.HitAmount do
-                        if not _G.AutoPBNB then break end
-                        FistRemote:FireServer(cleanTarget)
-                        task.wait(0.07)
-                    end
                 end)
             end
+            
+            task.wait(0.1) -- Jeda singkat setelah semua terpasang
+
+            -- 2. TAHAP PEMUKULAN (HIT CYCLE)
+            -- Ulangi sebanyak jumlah HitAmount yang ditentukan
+            for h = 1, (_G.HitAmount or 3) do
+                if not _G.AutoPBNB then break end
+                
+                -- Pukul setiap target 1 kali dalam satu putaran
+                for _, offset in pairs(_G.SelectedTargets) do
+                    if not _G.AutoPBNB then break end
+                    local finalTarget = Vector2.new(currentPos.X + offset.X, currentPos.Y + offset.Y)
+                    local cleanTarget = Vector2.new(math.floor(finalTarget.X), math.floor(finalTarget.Y))
+                    
+                    pcall(function()
+                        FistRemote:FireServer(cleanTarget)
+                    end)
+                    task.wait(0.05) -- Jeda antar pukulan per blok agar tidak kick/error
+                end
+            end
         end
-        task.wait(0.05)
+        task.wait(0.1) -- Jeda sebelum memulai cycle baru
     end
 end)
 
