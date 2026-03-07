@@ -39,7 +39,7 @@ local Theme = {
     SubText = Color3.fromRGB(160, 165, 175)
 }
 
--- [[ 1. SISTEM INVENTORY & DROPDOWN (REAL DATA) ]] --
+-- [[ 1. SISTEM INVENTORY & DROPDOWN (STRICT ID) ]] --
 local function GetInventoryItems()
     local items = {}
     
@@ -50,18 +50,18 @@ local function GetInventoryItems()
 
         for slotIndex, itemData in pairs(InventoryModule.Stacks) do
             if type(itemData) == "table" and itemData.Id then
-                -- Di game ini, itemData.Id isinya adalah teks seperti "dirt", "rock"
-                local itemStringID = itemData.Id 
+                local rawID = itemData.Id -- Ini akan mengambil angka aslinya (misal: 8)
                 local amount = itemData.Amount or 1
                 
-                local dataInfo = ItemsManager.RequestItemData(itemStringID)
-                local realName = (dataInfo and dataInfo.Name) and dataInfo.Name or itemStringID
+                local dataInfo = ItemsManager.RequestItemData(rawID)
+                local realName = dataInfo and dataInfo.Name or "Unknown Item"
                 
-                local displayName = realName .. " (x" .. amount .. ")"
+                -- Format tampilan baru: Dirt (x50) [ID: 8]
+                local displayName = realName .. " (x" .. amount .. ") [ID: " .. tostring(rawID) .. "]"
                 
-                -- Kita simpan "dirt" sebagai value yang akan dikirim ke server
+                -- Kita simpan rawID (angka) sebagai value yang akan dikirim
                 if not items[displayName] then
-                    items[displayName] = itemStringID
+                    items[displayName] = rawID
                 end
             end
         end
@@ -102,8 +102,7 @@ local function RefreshDropdown()
         ItemBtn.TextXAlignment = Enum.TextXAlignment.Left; ItemBtn.ZIndex = 6
         
         ItemBtn.MouseButton1Click:Connect(function()
-            -- Simpan ID ke variabel global
-            _G.Farm_BlockID = id 
+            _G.Farm_BlockID = id -- Menyimpan angka ID
             DropBtn.Text = "Selected: " .. displayName .. " ▼"
             DropList.Visible = false
         end)
@@ -202,11 +201,10 @@ task.spawn(function()
                 if not _G.Farm_Active then break end
                 local tx, ty = math.floor(cp.X + o.X), math.floor(cp.Y + o.Y)
                 
-                -- Pastikan blok sudah dipilih dari Dropdown (tidak nil)
-                if _G.Farm_BlockID then 
+                if _G.Farm_BlockID ~= nil then 
                     pcall(function() 
-                        -- SAMA PERSIS DENGAN REMOTE SPY KAMU
-                        PlaceRemote:FireServer(Vector2.new(tx, ty), _G.Farm_BlockID) 
+                        -- Kita paksa menjadi angka (tonumber) agar pasti terkirim sebagai integer, misal: 8
+                        PlaceRemote:FireServer(Vector2.new(tx, ty), tonumber(_G.Farm_BlockID) or _G.Farm_BlockID) 
                     end)
                 end
                 task.wait(_G.Farm_PlaceDelay)
