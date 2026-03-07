@@ -89,7 +89,7 @@ local FarmPage = AddTab("Auto Farm") -- Ini dari fungsi AddTab sebelumnya
 -- Tambahkan module di dalam tab Auto Farm
 AddCloudModule(
     FarmPage, 
-    "Wood Auto-Farm", 
-    "Otomatis memotong kayu di world terdekat. Gunakan kapak terbaikmu!", 
-    "https://raw.githubusercontent.com/UsernameKamu/RepoKamu/main/autofarm.lua"
+    "Auto Farm", 
+    "Auto Farm simple", 
+    "https://raw.githubusercontent.com/NuansaHub/NuansaHUB/refs/heads/main/AutoFarm.lua"
 )
