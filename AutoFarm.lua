@@ -28,6 +28,7 @@ _G.Farm_BlockID = 5       -- Default ID
 _G.Farm_PlaceDelay = 0.15 -- Default Delay Place
 _G.Farm_HitDelay = 0.08   -- Default Delay Hit
 _G.Farm_HitCount = 3      -- Default Hit
+_G.Farm_BlockName = "" -- Sekarang kita pakai teks kosong sebagai default
 _G.Farm_Targets = {}
 
 local Theme = {
@@ -39,39 +40,38 @@ local Theme = {
 }
 
 -- [[ 1. SISTEM INVENTORY & DROPDOWN (REAL DATA) ]] --
---- Fungsi untuk membaca tas pemain menggunakan Module bawaan game
 local function GetInventoryItems()
     local items = {}
     
-    -- Bungkus dengan pcall agar tidak error jika module lambat loading
     pcall(function()
         local RS = game:GetService("ReplicatedStorage")
         local InventoryModule = require(RS.Modules.Inventory)
         local ItemsManager = require(RS.Managers.ItemsManager)
 
-        -- Membaca semua slot di tas (Stacks)
         for slotIndex, itemData in pairs(InventoryModule.Stacks) do
-            -- Pastikan slot tersebut ada isinya (ada ID-nya)
             if type(itemData) == "table" and itemData.Id then
                 local realID = itemData.Id
                 local amount = itemData.Amount or 1
                 
-                -- Minta nama asli item tersebut ke ItemsManager
                 local dataInfo = ItemsManager.RequestItemData(realID)
-                local realName = dataInfo and dataInfo.Name or ("Unknown Item ("..realID..")")
-                
-                -- Hanya masukkan jika belum ada di list (mencegah duplikat di dropdown)
-                local displayName = realName .. " (x" .. amount .. ")"
-                if not items[realName] then
-                    items[displayName] = realID
+                if dataInfo and dataInfo.Name then
+                    local realName = dataInfo.Name
+                    -- Ubah nama jadi huruf kecil semua, misal "Dirt" -> "dirt"
+                    local internalName = string.lower(realName) 
+                    
+                    local displayName = realName .. " (x" .. amount .. ")"
+                    
+                    -- Kita simpan "internalName" sebagai value, bukan realID lagi
+                    if not items[displayName] then
+                        items[displayName] = internalName
+                    end
                 end
             end
         end
     end)
     
-    -- Jika tas kosong atau script belum siap, beri satu opsi default
     if next(items) == nil then
-        items["No Items Found / Loading..."] = 0
+        items["No Items Found / Loading..."] = ""
     end
     
     return items
@@ -93,27 +93,25 @@ DropList.ZIndex = 5 -- Supaya tidak tertimpa UI bawahnya
 
 -- Fungsi untuk mengisi/me-refresh daftar item
 local function RefreshDropdown()
-    -- Hapus daftar lama
     for _, child in pairs(DropList:GetChildren()) do
         if child:IsA("TextButton") then child:Destroy() end
     end
     
-    -- Isi dengan data tas yang baru
-    for displayName, id in pairs(GetInventoryItems()) do
+    -- Perhatikan: "internalName" menggantikan posisi "id"
+    for displayName, internalName in pairs(GetInventoryItems()) do
         local ItemBtn = Instance.new("TextButton", DropList)
-        ItemBtn.Size = UDim2.new(1, 0, 0, 25); ItemBtn.BackgroundColor3 = Theme.Main; ItemBtn.Text = " " .. displayName
-        ItemBtn.TextColor3 = Theme.Text; ItemBtn.Font = Enum.Font.Gotham; ItemBtn.TextSize = 11; Instance.new("UICorner", ItemBtn)
-        ItemBtn.TextXAlignment = Enum.TextXAlignment.Left
-        ItemBtn.ZIndex = 6
+        ItemBtn.Size = UDim2.new(1, 0, 0, 25); ItemBtn.BackgroundColor3 = Theme.Main
+        ItemBtn.Text = " " .. displayName; ItemBtn.TextColor3 = Theme.Text
+        ItemBtn.Font = Enum.Font.Gotham; ItemBtn.TextSize = 11; Instance.new("UICorner", ItemBtn)
+        ItemBtn.TextXAlignment = Enum.TextXAlignment.Left; ItemBtn.ZIndex = 6
         
         ItemBtn.MouseButton1Click:Connect(function()
-            _G.Farm_BlockID = id
+            -- Simpan nama item ke variabel global
+            _G.Farm_BlockName = internalName 
             DropBtn.Text = "Selected: " .. displayName .. " ▼"
             DropList.Visible = false
         end)
     end
-    
-    -- Sesuaikan tinggi box scroll sesuai jumlah item
     DropList.CanvasSize = UDim2.new(0, 0, 0, DropLayout.AbsoluteContentSize.Y + 5)
 end
 
@@ -203,15 +201,19 @@ task.spawn(function()
         if _G.Farm_Active and #_G.Farm_Targets > 0 then
             local cp = GetCurrentGrid()
             
-            -- PHASE 1: FORCE PLACE (Langsung taruh blok di semua target yang dipilih)
+            -- PHASE 1: FORCE PLACE
             for _, o in ipairs(_G.Farm_Targets) do
                 if not _G.Farm_Active then break end
                 local tx, ty = math.floor(cp.X + o.X), math.floor(cp.Y + o.Y)
                 
-                pcall(function() 
-                    PlaceRemote:FireServer(Vector2.new(tx, ty), _G.Farm_BlockID) 
-                end)
-                task.wait(_G.Farm_PlaceDelay) -- Menggunakan delay yang kamu atur di UI
+                -- Cek agar tidak mengirim teks kosong
+                if _G.Farm_BlockName ~= "" then 
+                    pcall(function() 
+                        -- Kirim NAMA BLOK (string), bukan ID
+                        PlaceRemote:FireServer(Vector2.new(tx, ty), _G.Farm_BlockName) 
+                    end)
+                end
+                task.wait(_G.Farm_PlaceDelay)
             end
             
             -- JEDA TRANSISI: Beri waktu agak lama (0.4s) agar server memunculkan blok fisik
