@@ -62,7 +62,7 @@ StartBtn.MouseButton1Click:Connect(function()
     end
 end)
 
--- [[ 1. SISTEM INVENTORY & DROPDOWN (ZONHUB STYLE) ]] --
+-- [[ 1. SISTEM INVENTORY & DROPDOWN (ZONHUB STYLE + SAPLING FIX) ]] --
 local function GetInventoryItems()
     local items = {}
     pcall(function()
@@ -77,6 +77,14 @@ local function GetInventoryItems()
                 local dataInfo = ItemsManager.RequestItemData(itemStringID)
                 local realName = (dataInfo and dataInfo.Name) and dataInfo.Name or itemStringID
                 
+                -- [!] FIX SAPLING: Meniru cara kerja UI game aslinya
+                if type(itemStringID) == "string" and string.sub(itemStringID, -8) == "_sapling" then
+                    -- Pastikan tidak dobel kata Sapling-nya
+                    if not string.match(string.lower(realName), "sapling") then
+                        realName = realName .. " Sapling"
+                    end
+                end
+                
                 -- Format text agar lebih bersih di list
                 local displayName = realName .. " [" .. tostring(slotIndex) .. "]"
                 if not items[displayName] then items[displayName] = slotIndex end
@@ -86,7 +94,6 @@ local function GetInventoryItems()
     if next(items) == nil then items["Tas Kosong / Loading"] = nil end
     return items
 end
-
 -- Baris Dropdown Utama
 local DropRow = Instance.new("Frame", Page)
 DropRow.Size = UDim2.new(1, -10, 0, 35)
