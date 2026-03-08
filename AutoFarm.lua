@@ -41,44 +41,56 @@ local Theme = {
 
 -- [[ 1. SISTEM INVENTORY & DROPDOWN (SLOT INDEX MODE) ]] --
 local function GetInventoryItems()
-    local items = {}
+    local groupedItems = {}
+    local itemsForDropdown = {}
     
-    pcall(function()
+    local success, err = pcall(function()
         local RS = game:GetService("ReplicatedStorage")
         local InventoryModule = require(RS.Modules.Inventory)
         local ItemsManager = require(RS.Managers.ItemsManager)
 
-        -- KITA MEMBACA KEY 'slotIndex' (Nomor kotak tas)
+        -- Cegah error jika game belum memuat folder Stacks
+        if type(InventoryModule.Stacks) ~= "table" then return end 
+
         for slotIndex, itemData in pairs(InventoryModule.Stacks) do
             if type(itemData) == "table" and itemData.Id then
-                local amount = itemData.Amount or 1
                 local itemStringID = itemData.Id 
+                local amount = itemData.Amount or 1
                 
-                local dataInfo = ItemsManager.RequestItemData(itemStringID)
-                local realName = (dataInfo and dataInfo.Name) and dataInfo.Name or itemStringID
-                
-                -- Tampilan Dropdown: Dirt (x50) [Slot: 12]
-                local displayName = realName .. " (x" .. amount .. ") [Slot: " .. tostring(slotIndex) .. "]"
-                
-                -- KITA SIMPAN NOMOR SLOT-NYA! Inilah yang diminta server.
-                if not items[displayName] then
-                    items[displayName] = slotIndex
+                if not groupedItems[itemStringID] then
+                    groupedItems[itemStringID] = {
+                        TotalAmount = 0,
+                        RealName = itemStringID
+                    }
+                    
+                    local dataInfo = ItemsManager.RequestItemData(itemStringID)
+                    if dataInfo and dataInfo.Name then
+                        groupedItems[itemStringID].RealName = dataInfo.Name
+                    end
                 end
+                
+                groupedItems[itemStringID].TotalAmount = groupedItems[itemStringID].TotalAmount + amount
             end
         end
     end)
+    -- Print error ke F9 jika ada masalah membaca memori
+    if not success then warn("ALPHA PROJECT ERROR: ", tostring(err)) end
     
-    if next(items) == nil then
-        items["No Items Found"] = nil
+    for itemID, data in pairs(groupedItems) do
+        local displayName = data.RealName .. " (Total: " .. data.TotalAmount .. ")"
+        itemsForDropdown[displayName] = itemID 
     end
     
-    return items
+    -- FIX BUG LUA: Jangan gunakan nil, gunakan teks "KOSONG" agar tombol tetap terbuat
+    if next(itemsForDropdown) == nil then
+        itemsForDropdown["Inventory Loading / Empty..."] = "KOSONG"
+    end
+    
+    return itemsForDropdown
 end
 
--- UI Dropdown
 local DropdownFrame = Instance.new("Frame", Page)
 DropdownFrame.Size = UDim2.new(1, -10, 0, 35); DropdownFrame.BackgroundColor3 = Theme.Item; Instance.new("UICorner", DropdownFrame)
-
 local DropBtn = Instance.new("TextButton", DropdownFrame)
 DropBtn.Size = UDim2.new(1, 0, 1, 0); DropBtn.BackgroundTransparency = 1; DropBtn.Text = "Refresh & Select Block ▼"
 DropBtn.TextColor3 = Theme.Accent; DropBtn.Font = Enum.Font.GothamBold; DropBtn.TextSize = 12
@@ -87,25 +99,27 @@ local DropList = Instance.new("ScrollingFrame", Page)
 DropList.Size = UDim2.new(1, -10, 0, 150); DropList.BackgroundColor3 = Theme.Item; DropList.Visible = false
 DropList.BorderSizePixel = 0; DropList.ScrollBarThickness = 2; Instance.new("UICorner", DropList)
 local DropLayout = Instance.new("UIListLayout", DropList); DropLayout.Padding = UDim.new(0, 2)
-DropList.ZIndex = 5 -- Supaya tidak tertimpa UI bawahnya
+DropList.ZIndex = 10 -- Naikkan Z-Index agar selalu di atas pengaturan lain
 
--- Fungsi untuk mengisi/me-refresh daftar item
 local function RefreshDropdown()
     for _, child in pairs(DropList:GetChildren()) do
         if child:IsA("TextButton") then child:Destroy() end
     end
     
-    for displayName, slotIndex in pairs(GetInventoryItems()) do
+    for displayName, itemID in pairs(GetInventoryItems()) do
         local ItemBtn = Instance.new("TextButton", DropList)
         ItemBtn.Size = UDim2.new(1, 0, 0, 25); ItemBtn.BackgroundColor3 = Theme.Main
         ItemBtn.Text = " " .. displayName; ItemBtn.TextColor3 = Theme.Text
         ItemBtn.Font = Enum.Font.Gotham; ItemBtn.TextSize = 11; Instance.new("UICorner", ItemBtn)
-        ItemBtn.TextXAlignment = Enum.TextXAlignment.Left; ItemBtn.ZIndex = 6
+        ItemBtn.TextXAlignment = Enum.TextXAlignment.Left; ItemBtn.ZIndex = 11
         
         ItemBtn.MouseButton1Click:Connect(function()
-            -- Simpan Nomor Slot ke variabel
-            _G.Farm_SlotIndex = slotIndex 
-            DropBtn.Text = "Selected: " .. displayName .. " ▼"
+            if itemID ~= "KOSONG" then
+                _G.Farm_TargetItemID = itemID 
+                DropBtn.Text = "Selected: " .. displayName .. " ▼"
+            else
+                DropBtn.Text = "Refresh & Select Block ▼"
+            end
             DropList.Visible = false
         end)
     end
@@ -114,9 +128,7 @@ end
 
 -- Klik tombol dropdown: Refresh tas dulu, baru munculkan list
 DropBtn.MouseButton1Click:Connect(function() 
-    if not DropList.Visible then
-        RefreshDropdown()
-    end
+    if not DropList.Visible then RefreshDropdown() end
     DropList.Visible = not DropList.Visible 
 end)
 
