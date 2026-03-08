@@ -27,7 +27,7 @@ local AlphaLogo = Instance.new("TextButton", ScreenGui)
 AlphaLogo.Size = UDim2.new(0, 55, 0, 55)
 AlphaLogo.BackgroundColor3 = Theme.Main
 AlphaLogo.Position = UDim2.new(0, 50, 0, 50)
-AlphaLogo.Text = "A"; AlphaLogo.TextColor3 = Theme.Accent; AlphaLogo.Font = Enum.Font.GothamBlack; AlphaLogo.TextSize = 25
+AlphaLogo.Text = "N"; AlphaLogo.TextColor3 = Theme.Accent; AlphaLogo.Font = Enum.Font.GothamBlack; AlphaLogo.TextSize = 25
 AlphaLogo.Visible = false
 AlphaLogo.ZIndex = 10 -- Paling depan
 Instance.new("UICorner", AlphaLogo).CornerRadius = UDim.new(1, 0)
