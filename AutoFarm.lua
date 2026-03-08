@@ -182,14 +182,26 @@ end
 
 -- [[ ENGINE GOD MODE: AUTO COLLECT & AUTO FARM ]] --
 
--- Pindahkan GetCurrentGrid ke atas agar bisa dibaca oleh fungsi sedot
 local function GetCurrentGrid()
     local Char = LP.Character
     local Root = Char and Char:FindFirstChild("HumanoidRootPart")
     return Root and Vector2.new(math.floor(Root.Position.X / 4.5 + 0.5), math.floor(Root.Position.Y / 4.5 + 0.5)) or Vector2.new(0,0)
 end
 
--- Fungsi Pintar untuk Mengambil Barang (Hanya di Grid Pilihan)
+-- [FITUR BARU] Fungsi untuk memalsukan langkah kecil agar tidak terdeteksi teleport
+local function SmoothMove(remote, startPos, endPos)
+    local dist = (endPos - startPos).Magnitude
+    local steps = math.ceil(dist / 1.5) -- Membagi jarak jadi beberapa langkah kecil
+    if steps < 1 then steps = 1 end
+    
+    for i = 1, steps do
+        local currentPos = startPos:Lerp(endPos, i / steps)
+        pcall(function() remote:FireServer(currentPos) end)
+        task.wait(0.04) -- Jeda menyesuaikan kecepatan server (20 Tick per detik)
+    end
+end
+
+-- Fungsi Pintar untuk Mengambil Barang (Pola Bintang Anti-Nyangkut)
 local function StealthCollectDrops()
     local Drops = workspace:FindFirstChild("Drops")
     if not Drops or #Drops:GetChildren() == 0 then return end
@@ -201,12 +213,11 @@ local function StealthCollectDrops()
     local MyHitbox = workspace:FindFirstChild("Hitbox") and workspace.Hitbox:FindFirstChild(LP.Name)
     local PosisiAsli = MyHitbox and Vector2.new(MyHitbox.Position.X, MyHitbox.Position.Y) or Vector2.new(0,0)
     
-    -- [!] KUNCI FILTER: Buat daftar koordinat grid yang valid sesuai pilihan di UI
     local cp = GetCurrentGrid()
     local validGrids = {}
     for _, o in ipairs(_G.Farm_Targets) do
         local tx, ty = math.floor(cp.X + o.X), math.floor(cp.Y + o.Y)
-        validGrids[tx .. "," .. ty] = true -- Simpan sebagai target yang sah
+        validGrids[tx .. "," .. ty] = true 
     end
 
     local hasCollected = false
@@ -221,16 +232,15 @@ local function StealthCollectDrops()
         
         if targetPart then
             local posBarang = targetPart.Position
-            -- Ubah posisi 3D barang menjadi Koordinat Grid 2D
             local itemX = math.floor(posBarang.X / 4.5 + 0.5)
             local itemY = math.floor(posBarang.Y / 4.5 + 0.5)
             
-            -- [!] CEK TARGET: Hanya ambil kalau barang ada di area yang kita pilih!
             if validGrids[itemX .. "," .. itemY] then
                 hasCollected = true
                 local KoordinatPalsu = Vector2.new(posBarang.X, posBarang.Y)
                 
-                pcall(function() MyRemote:FireServer(KoordinatPalsu) end)
+                -- 1. BERJALAN KILAT DARI TENGAH KE BARANG
+                SmoothMove(MyRemote, PosisiAsli, KoordinatPalsu)
                 
                 if MyHitbox and firetouchinterest then
                     pcall(function()
@@ -238,14 +248,18 @@ local function StealthCollectDrops()
                         firetouchinterest(MyHitbox, targetPart, 1)
                     end)
                 end
-                task.wait(0.15) 
+                task.wait(0.05) -- Biarkan barang masuk ke tas
+                
+                -- 2. BERJALAN KILAT KEMBALI KE TENGAH SEBELUM MENGAMBIL BARANG LAIN!
+                SmoothMove(MyRemote, KoordinatPalsu, PosisiAsli)
+                task.wait(0.05)
             end
         end
     end
     
+    -- Pastikan bot benar-benar lapor ke server kalau dia ada di tengah di akhir sesi
     if hasCollected then
         pcall(function() MyRemote:FireServer(PosisiAsli) end)
-        task.wait(0.1)
     end
 end
 
