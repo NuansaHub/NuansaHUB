@@ -1,4 +1,3 @@
-
 -- [[ ALPHA PROJECT - ADVANCED AUTO FARM MODULE ]] --
 
 local CoreGui = game:GetService("CoreGui")
@@ -7,7 +6,7 @@ local RS = game:GetService("ReplicatedStorage")
 local TS = game:GetService("TweenService")
 local LP = Players.LocalPlayer
 
--- Remotes (Sesuaikan dengan game kamu)
+-- Remotes
 local PlaceRemote = RS:WaitForChild("Remotes"):WaitForChild("PlayerPlaceItem")
 local FistRemote = RS:WaitForChild("Remotes"):WaitForChild("PlayerFist")
 
@@ -24,11 +23,11 @@ end
 
 -- [[ VARIABEL GLOBAL FARMING ]] --
 _G.Farm_Active = false
-_G.Farm_BlockID = 5       -- Default ID
-_G.Farm_PlaceDelay = 0.15 -- Default Delay Place
-_G.Farm_HitDelay = 0.13   -- Default Delay Hit
-_G.Farm_HitCount = 3      -- Default Hit
-_G.Farm_SlotIndex = 1 -- Default ID
+_G.Farm_BlockID = 5       
+_G.Farm_PlaceDelay = 0.15 
+_G.Farm_HitDelay = 0.13   
+_G.Farm_HitCount = 3      
+_G.Farm_SlotIndex = 1     -- Default Slot
 _G.Farm_Targets = {}
 
 local Theme = {
@@ -39,91 +38,108 @@ local Theme = {
     SubText = Color3.fromRGB(160, 165, 175)
 }
 
--- [[ 1. SISTEM INVENTORY & DROPDOWN (SLOT INDEX MODE) ]] --
+-- Variabel penampung untuk Sinkronisasi Kotak Teks
+local SlotInputBox = nil
+
+-- [[ 0. TOMBOL START (DI ATAS) ]] --
+local StartFrame = Instance.new("Frame", Page)
+StartFrame.Size = UDim2.new(1, -10, 0, 45); StartFrame.BackgroundTransparency = 1; StartFrame.ZIndex = 1
+
+local StartBtn = Instance.new("TextButton", StartFrame)
+StartBtn.Size = UDim2.new(1, 0, 1, 0); StartBtn.BackgroundColor3 = Theme.Main
+StartBtn.Text = "AUTO FARM : OFF"; StartBtn.TextColor3 = Color3.fromRGB(255, 80, 80)
+StartBtn.Font = Enum.Font.GothamBlack; StartBtn.TextSize = 14; Instance.new("UICorner", StartBtn)
+local StartStroke = Instance.new("UIStroke", StartBtn); StartStroke.Color = Color3.fromRGB(255, 80, 80); StartStroke.Thickness = 1.5
+
+StartBtn.MouseButton1Click:Connect(function()
+    _G.Farm_Active = not _G.Farm_Active
+    if _G.Farm_Active then
+        StartBtn.Text = "AUTO FARM : ON"
+        StartBtn.TextColor3 = Theme.Accent; StartStroke.Color = Theme.Accent
+        TS:Create(StartBtn, TweenInfo.new(0.3), {BackgroundColor3 = Theme.Item}):Play()
+    else
+        StartBtn.Text = "AUTO FARM : OFF"
+        StartBtn.TextColor3 = Color3.fromRGB(255, 80, 80); StartStroke.Color = Color3.fromRGB(255, 80, 80)
+        TS:Create(StartBtn, TweenInfo.new(0.3), {BackgroundColor3 = Theme.Main}):Play()
+    end
+end)
+
+-- [[ 1. SISTEM INVENTORY & DROPDOWN ]] --
 local function GetInventoryItems()
     local items = {}
-    
     pcall(function()
         local RS = game:GetService("ReplicatedStorage")
         local InventoryModule = require(RS.Modules.Inventory)
         local ItemsManager = require(RS.Managers.ItemsManager)
 
-        -- KITA MEMBACA KEY 'slotIndex' (Nomor kotak tas)
         for slotIndex, itemData in pairs(InventoryModule.Stacks) do
             if type(itemData) == "table" and itemData.Id then
                 local amount = itemData.Amount or 1
                 local itemStringID = itemData.Id 
-                
                 local dataInfo = ItemsManager.RequestItemData(itemStringID)
                 local realName = (dataInfo and dataInfo.Name) and dataInfo.Name or itemStringID
                 
-                -- Tampilan Dropdown: Dirt (x50) [Slot: 12]
                 local displayName = realName .. " (x" .. amount .. ") [Slot: " .. tostring(slotIndex) .. "]"
-                
-                -- KITA SIMPAN NOMOR SLOT-NYA! Inilah yang diminta server.
-                if not items[displayName] then
-                    items[displayName] = slotIndex
-                end
+                if not items[displayName] then items[displayName] = slotIndex end
             end
         end
     end)
-    
-    if next(items) == nil then
-        items["No Items Found"] = nil
-    end
-    
+    if next(items) == nil then items["No Items Found"] = nil end
     return items
 end
 
--- UI Dropdown
+-- Desain Dropdown Dibuat Mirip Menu Settings Lainnya
 local DropdownFrame = Instance.new("Frame", Page)
-DropdownFrame.Size = UDim2.new(1, -10, 0, 35); DropdownFrame.BackgroundColor3 = Theme.Item; Instance.new("UICorner", DropdownFrame)
+DropdownFrame.Size = UDim2.new(1, -10, 0, 30); DropdownFrame.BackgroundTransparency = 1
+
+local DropLbl = Instance.new("TextLabel", DropdownFrame)
+DropLbl.Size = UDim2.new(0.6, 0, 1, 0); DropLbl.Text = "Pilih Block (Delta/PC):"; DropLbl.TextColor3 = Theme.Text
+DropLbl.Font = Enum.Font.Gotham; DropLbl.TextSize = 12; DropLbl.BackgroundTransparency = 1; DropLbl.TextXAlignment = Enum.TextXAlignment.Left
 
 local DropBtn = Instance.new("TextButton", DropdownFrame)
-DropBtn.Size = UDim2.new(1, 0, 1, 0); DropBtn.BackgroundTransparency = 1; DropBtn.Text = "Refresh & Select Block ▼"
-DropBtn.TextColor3 = Theme.Accent; DropBtn.Font = Enum.Font.GothamBold; DropBtn.TextSize = 12
+DropBtn.Size = UDim2.new(0.35, 0, 0.8, 0); DropBtn.Position = UDim2.new(0.65, 0, 0.1, 0)
+DropBtn.BackgroundColor3 = Theme.Item; DropBtn.TextColor3 = Theme.Accent; DropBtn.Font = Enum.Font.GothamBold; DropBtn.TextSize = 11
+DropBtn.Text = "Buka List ▼"; Instance.new("UICorner", DropBtn)
 
+-- List Dropdown
 local DropList = Instance.new("ScrollingFrame", Page)
 DropList.Size = UDim2.new(1, -10, 0, 150); DropList.BackgroundColor3 = Theme.Item; DropList.Visible = false
 DropList.BorderSizePixel = 0; DropList.ScrollBarThickness = 2; Instance.new("UICorner", DropList)
 local DropLayout = Instance.new("UIListLayout", DropList); DropLayout.Padding = UDim.new(0, 2)
-DropList.ZIndex = 5 -- Supaya tidak tertimpa UI bawahnya
+DropList.ZIndex = 10 -- ZIndex tinggi agar menimpa menu bawahnya
 
--- Fungsi untuk mengisi/me-refresh daftar item
 local function RefreshDropdown()
-    for _, child in pairs(DropList:GetChildren()) do
-        if child:IsA("TextButton") then child:Destroy() end
-    end
+    for _, child in pairs(DropList:GetChildren()) do if child:IsA("TextButton") then child:Destroy() end end
     
     for displayName, slotIndex in pairs(GetInventoryItems()) do
         local ItemBtn = Instance.new("TextButton", DropList)
         ItemBtn.Size = UDim2.new(1, 0, 0, 25); ItemBtn.BackgroundColor3 = Theme.Main
         ItemBtn.Text = " " .. displayName; ItemBtn.TextColor3 = Theme.Text
         ItemBtn.Font = Enum.Font.Gotham; ItemBtn.TextSize = 11; Instance.new("UICorner", ItemBtn)
-        ItemBtn.TextXAlignment = Enum.TextXAlignment.Left; ItemBtn.ZIndex = 6
+        ItemBtn.TextXAlignment = Enum.TextXAlignment.Left; ItemBtn.ZIndex = 11
         
         ItemBtn.MouseButton1Click:Connect(function()
-            -- Simpan Nomor Slot ke variabel
             _G.Farm_SlotIndex = slotIndex 
-            DropBtn.Text = "Selected: " .. displayName .. " ▼"
+            DropBtn.Text = "Slot: " .. tostring(slotIndex)
+            
+            -- [!] FITUR SINKRONISASI: Mengubah angka di kotak Manual secara otomatis
+            if SlotInputBox then
+                SlotInputBox.Text = tostring(slotIndex)
+            end
+            
             DropList.Visible = false
         end)
     end
     DropList.CanvasSize = UDim2.new(0, 0, 0, DropLayout.AbsoluteContentSize.Y + 5)
 end
 
--- Klik tombol dropdown: Refresh tas dulu, baru munculkan list
 DropBtn.MouseButton1Click:Connect(function() 
-    if not DropList.Visible then
-        RefreshDropdown()
-    end
+    if not DropList.Visible then RefreshDropdown() end
     DropList.Visible = not DropList.Visible 
 end)
-
--- Panggil refresh sekali saat UI pertama kali terbuka
 RefreshDropdown()
 
--- [[ 3 & 4. SETTINGS: DELAY & HIT COUNT ]] --
+-- [[ 2 & 3. SETTINGS: MANUAL INPUT & DELAY ]] --
 local function CreateSetting(label, defaultVal, globalVar)
     local Frame = Instance.new("Frame", Page)
     Frame.Size = UDim2.new(1, -10, 0, 30); Frame.BackgroundTransparency = 1
@@ -136,15 +152,17 @@ local function CreateSetting(label, defaultVal, globalVar)
     Box.BackgroundColor3 = Theme.Item; Box.TextColor3 = Theme.Accent; Box.Font = Enum.Font.GothamBold; Box.TextSize = 12; Box.Text = tostring(defaultVal); Instance.new("UICorner", Box)
     
     Box.FocusLost:Connect(function() _G[globalVar] = tonumber(Box.Text) or defaultVal end)
+    
+    return Box -- Kembalikan nilai Box agar bisa di-sinkronisasi dari luar
 end
 
--- [!] TAMBAHKAN BARIS INI UNTUK PENGGUNA XENO
-CreateSetting("Manual Slot Tas (Xeno Fix):", _G.Farm_SlotIndex, "Farm_SlotIndex") 
+-- Simpan Box Manual Slot ke dalam variabel SlotInputBox
+SlotInputBox = CreateSetting("Manual Slot Tas (Xeno):", _G.Farm_SlotIndex, "Farm_SlotIndex") 
 CreateSetting("Place Delay (Detik):", _G.Farm_PlaceDelay, "Farm_PlaceDelay")
 CreateSetting("Hit Delay (Detik):", _G.Farm_HitDelay, "Farm_HitDelay")
 CreateSetting("Hit Count (Pukulan):", _G.Farm_HitCount, "Farm_HitCount")
 
--- [[ 5. SELECT FARM TILES (GRID SELECTOR) ]] --
+-- [[ 4. SELECT FARM TILES (GRID SELECTOR) ]] --
 local GridBox = Instance.new("Frame", Page)
 GridBox.Size = UDim2.new(1, -10, 0, 180); GridBox.BackgroundColor3 = Theme.Item; Instance.new("UICorner", GridBox)
 local GInner = Instance.new("Frame", GridBox)
@@ -171,23 +189,6 @@ for y = 2, -2, -1 do
     end
 end
 
--- [[ TOMBOL START/STOP ]] --
-local StartBtn = Instance.new("TextButton", Page)
-StartBtn.Size = UDim2.new(1, -10, 0, 40); StartBtn.BackgroundColor3 = Theme.Main; StartBtn.Text = "START AUTO FARM"
-StartBtn.TextColor3 = Theme.Accent; StartBtn.Font = Enum.Font.GothamBlack; StartBtn.TextSize = 14; Instance.new("UICorner", StartBtn)
-local StartStroke = Instance.new("UIStroke", StartBtn); StartStroke.Color = Theme.Accent; StartStroke.Thickness = 1.5
-
-StartBtn.MouseButton1Click:Connect(function()
-    _G.Farm_Active = not _G.Farm_Active
-    if _G.Farm_Active then
-        StartBtn.Text = "STOP AUTO FARM"
-        TS:Create(StartBtn, TweenInfo.new(0.3), {BackgroundColor3 = Theme.Accent, TextColor3 = Theme.Main}):Play()
-    else
-        StartBtn.Text = "START AUTO FARM"
-        TS:Create(StartBtn, TweenInfo.new(0.3), {BackgroundColor3 = Theme.Main, TextColor3 = Theme.Accent}):Play()
-    end
-end)
-
 -- [[ ENGINE AUTO FARM ]] --
 local function GetCurrentGrid()
     local Char = LP.Character
@@ -205,10 +206,8 @@ task.spawn(function()
                 if not _G.Farm_Active then break end
                 local tx, ty = math.floor(cp.X + o.X), math.floor(cp.Y + o.Y)
                 
-                -- Pastikan Slot sudah dipilih
                 if _G.Farm_SlotIndex ~= nil then 
                     pcall(function() 
-                        -- KIRIM NOMOR SLOT KE SERVER (Persis seperti script asli gamenya)
                         PlaceRemote:FireServer(Vector2.new(tx, ty), _G.Farm_SlotIndex) 
                     end)
                 end
