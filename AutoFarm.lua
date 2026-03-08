@@ -46,10 +46,13 @@ local function GetInventoryItems()
     
     local success, err = pcall(function()
         local RS = game:GetService("ReplicatedStorage")
-        local InventoryModule = require(RS.Modules.Inventory)
-        local ItemsManager = require(RS.Managers.ItemsManager)
+        
+        -- [!] KUNCI FIX: Gunakan getrenv().require untuk PC Executor
+        local safeRequire = getrenv and getrenv().require or require
+        
+        local InventoryModule = safeRequire(RS:WaitForChild("Modules"):WaitForChild("Inventory"))
+        local ItemsManager = safeRequire(RS:WaitForChild("Managers"):WaitForChild("ItemsManager"))
 
-        -- Cegah error jika game belum memuat folder Stacks
         if type(InventoryModule.Stacks) ~= "table" then return end 
 
         for slotIndex, itemData in pairs(InventoryModule.Stacks) do
@@ -58,22 +61,21 @@ local function GetInventoryItems()
                 local amount = itemData.Amount or 1
                 
                 if not groupedItems[itemStringID] then
-                    groupedItems[itemStringID] = {
-                        TotalAmount = 0,
-                        RealName = itemStringID
-                    }
+                    groupedItems[itemStringID] = { TotalAmount = 0, RealName = itemStringID }
                     
-                    local dataInfo = ItemsManager.RequestItemData(itemStringID)
-                    if dataInfo and dataInfo.Name then
-                        groupedItems[itemStringID].RealName = dataInfo.Name
-                    end
+                    pcall(function()
+                        local dataInfo = ItemsManager.RequestItemData(itemStringID)
+                        if dataInfo and dataInfo.Name then
+                            groupedItems[itemStringID].RealName = dataInfo.Name
+                        end
+                    end)
                 end
                 
                 groupedItems[itemStringID].TotalAmount = groupedItems[itemStringID].TotalAmount + amount
             end
         end
     end)
-    -- Print error ke F9 jika ada masalah membaca memori
+    
     if not success then warn("ALPHA PROJECT ERROR: ", tostring(err)) end
     
     for itemID, data in pairs(groupedItems) do
@@ -81,7 +83,6 @@ local function GetInventoryItems()
         itemsForDropdown[displayName] = itemID 
     end
     
-    -- FIX BUG LUA: Jangan gunakan nil, gunakan teks "KOSONG" agar tombol tetap terbuat
     if next(itemsForDropdown) == nil then
         itemsForDropdown["Inventory Loading / Empty..."] = "KOSONG"
     end
@@ -203,6 +204,28 @@ local function GetCurrentGrid()
     local Char = LP.Character
     local Root = Char and Char:FindFirstChild("HumanoidRootPart")
     return Root and Vector2.new(math.floor(Root.Position.X / 4.5 + 0.5), math.floor(Root.Position.Y / 4.5 + 0.5)) or Vector2.new(0,0)
+end
+
+-- FUNGSI PELACAK SLOT OTOMATIS (PC FIX)
+local function GetValidSlot(targetItemID)
+    if not targetItemID then return nil end
+    local success, result = pcall(function()
+        local RS = game:GetService("ReplicatedStorage")
+        
+        -- [!] KUNCI FIX: Gunakan getrenv() di sini juga
+        local safeRequire = getrenv and getrenv().require or require
+        local InventoryModule = safeRequire(RS:WaitForChild("Modules"):WaitForChild("Inventory"))
+        
+        for slotIndex, itemData in pairs(InventoryModule.Stacks) do
+            if type(itemData) == "table" and itemData.Id == targetItemID then
+                if (itemData.Amount or 1) > 0 then
+                    return slotIndex
+                end
+            end
+        end
+        return nil
+    end)
+    return success and result or nil
 end
 
 task.spawn(function()
