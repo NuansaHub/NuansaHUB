@@ -144,14 +144,14 @@ CreateSetting("Hit Count (Pukulan):", _G.Farm_HitCount, "Farm_HitCount")
 -- [[ 3. AUTO COLLECT TOGGLE ]] --
 local CollectFrame = Instance.new("Frame", Page)
 CollectFrame.Size = UDim2.new(1, -10, 0, 35); CollectFrame.BackgroundColor3 = Theme.Item; Instance.new("UICorner", CollectFrame).CornerRadius = UDim.new(0, 6); CollectFrame.ZIndex = 1
-local CollectLbl = Instance.new("TextLabel", CollectFrame); CollectLbl.Size = UDim2.new(0.6, 0, 1, 0); CollectLbl.Position = UDim2.new(0, 10, 0, 0); CollectLbl.Text = "Auto Collect (Sedot Jarak Jauh)"; CollectLbl.TextColor3 = Theme.Text; CollectLbl.Font = Enum.Font.Gotham; CollectLbl.TextSize = 12; CollectLbl.BackgroundTransparency = 1; CollectLbl.TextXAlignment = Enum.TextXAlignment.Left
+local CollectLbl = Instance.new("TextLabel", CollectFrame); CollectLbl.Size = UDim2.new(0.6, 0, 1, 0); CollectLbl.Position = UDim2.new(0, 10, 0, 0); CollectLbl.Text = "Auto Collect"; CollectLbl.TextColor3 = Theme.Text; CollectLbl.Font = Enum.Font.Gotham; CollectLbl.TextSize = 12; CollectLbl.BackgroundTransparency = 1; CollectLbl.TextXAlignment = Enum.TextXAlignment.Left
 local CollectBtn = Instance.new("TextButton", CollectFrame); CollectBtn.Size = UDim2.new(0, 50, 0, 22); CollectBtn.Position = UDim2.new(1, -60, 0.5, -11); CollectBtn.BackgroundColor3 = Theme.Main; CollectBtn.Text = "OFF"; CollectBtn.TextColor3 = Color3.fromRGB(255, 80, 80); CollectBtn.Font = Enum.Font.GothamBold; CollectBtn.TextSize = 10; Instance.new("UICorner", CollectBtn).CornerRadius = UDim.new(0, 4); local CollectStroke = Instance.new("UIStroke", CollectBtn); CollectStroke.Color = Color3.fromRGB(255, 80, 80); CollectStroke.Thickness = 1
 
 CollectBtn.MouseButton1Click:Connect(function()
     _G.AutoCollect = not _G.AutoCollect
     if _G.AutoCollect then
         CollectBtn.Text = "ON"; CollectBtn.TextColor3 = Theme.Accent; CollectStroke.Color = Theme.Accent
-        TS:Create(CollectBtn, TweenInfo.new(0.2), {BackgroundColor3 = Theme.Item}):Play()
+        TS:Create(CollectBtn, TweenInfo.new(0.2), {BackgroundColor3 = Theme.Main}):Play()
     else
         CollectBtn.Text = "OFF"; CollectBtn.TextColor3 = Color3.fromRGB(255, 80, 80); CollectStroke.Color = Color3.fromRGB(255, 80, 80)
         TS:Create(CollectBtn, TweenInfo.new(0.2), {BackgroundColor3 = Theme.Main}):Play()
