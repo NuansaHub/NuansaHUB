@@ -62,7 +62,7 @@ StartBtn.MouseButton1Click:Connect(function()
     end
 end)
 
--- [[ 1. SISTEM INVENTORY & DROPDOWN ]] --
+-- [[ 1. SISTEM INVENTORY & DROPDOWN (BUG FIX) ]] --
 local function GetInventoryItems()
     local items = {}
     pcall(function()
@@ -72,9 +72,12 @@ local function GetInventoryItems()
         for slotIndex, itemData in pairs(InventoryModule.Stacks) do
             if type(itemData) == "table" and itemData.Id then
                 local itemStringID = itemData.Id 
-                local dataInfo = ItemsManager.RequestItemData(itemStringID)
+                
+                -- [!] KUNCI FIX: Mengambil data dari Tabel (ItemsData), BUKAN memanggil fungsi!
+                local dataInfo = ItemsManager.ItemsData and ItemsManager.ItemsData[itemStringID]
                 local realName = (dataInfo and dataInfo.Name) and dataInfo.Name or itemStringID
                 
+                -- Fix format Sapling
                 if type(itemStringID) == "string" and string.sub(itemStringID, -8) == "_sapling" then
                     if not string.match(string.lower(realName), "sapling") then
                         realName = realName .. " Sapling"
@@ -86,7 +89,10 @@ local function GetInventoryItems()
             end
         end
     end)
-    if next(items) == nil then items["Tas Kosong / Loading"] = nil end
+    
+    -- Fallback anti-error jika tas benar-benar kosong atau belum memuat
+    if next(items) == nil then items["Tas Kosong / Loading"] = 1 end
+    
     return items
 end
 
