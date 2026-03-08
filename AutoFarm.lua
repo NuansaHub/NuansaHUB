@@ -178,6 +178,38 @@ CreateSetting("Place Delay (Detik):", _G.Farm_PlaceDelay, "Farm_PlaceDelay")
 CreateSetting("Hit Delay (Detik):", _G.Farm_HitDelay, "Farm_HitDelay")
 CreateSetting("Hit Count (Pukulan):", _G.Farm_HitCount, "Farm_HitCount")
 
+-- [[ 4. AUTO COLLECT (MAGNET) TOGGLE ]] --
+_G.AutoCollect = false
+local CollectFrame = Instance.new("Frame", Page)
+CollectFrame.Size = UDim2.new(1, -10, 0, 35)
+CollectFrame.BackgroundColor3 = Theme.Item 
+Instance.new("UICorner", CollectFrame).CornerRadius = UDim.new(0, 6)
+CollectFrame.ZIndex = 1
+
+local CollectLbl = Instance.new("TextLabel", CollectFrame)
+CollectLbl.Size = UDim2.new(0.6, 0, 1, 0); CollectLbl.Position = UDim2.new(0, 10, 0, 0)
+CollectLbl.Text = "Auto Collect (Magnet)"; CollectLbl.TextColor3 = Theme.Text
+CollectLbl.Font = Enum.Font.Gotham; CollectLbl.TextSize = 12
+CollectLbl.BackgroundTransparency = 1; CollectLbl.TextXAlignment = Enum.TextXAlignment.Left
+
+local CollectBtn = Instance.new("TextButton", CollectFrame)
+CollectBtn.Size = UDim2.new(0, 50, 0, 22); CollectBtn.Position = UDim2.new(1, -60, 0.5, -11)
+CollectBtn.BackgroundColor3 = Theme.Main; CollectBtn.Text = "OFF"
+CollectBtn.TextColor3 = Color3.fromRGB(255, 80, 80); CollectBtn.Font = Enum.Font.GothamBold; CollectBtn.TextSize = 10
+Instance.new("UICorner", CollectBtn).CornerRadius = UDim.new(0, 4)
+local CollectStroke = Instance.new("UIStroke", CollectBtn); CollectStroke.Color = Color3.fromRGB(255, 80, 80); CollectStroke.Thickness = 1
+
+CollectBtn.MouseButton1Click:Connect(function()
+    _G.AutoCollect = not _G.AutoCollect
+    if _G.AutoCollect then
+        CollectBtn.Text = "ON"; CollectBtn.TextColor3 = Theme.Accent; CollectStroke.Color = Theme.Accent
+        TS:Create(CollectBtn, TweenInfo.new(0.2), {BackgroundColor3 = Theme.Item}):Play()
+    else
+        CollectBtn.Text = "OFF"; CollectBtn.TextColor3 = Color3.fromRGB(255, 80, 80); CollectStroke.Color = Color3.fromRGB(255, 80, 80)
+        TS:Create(CollectBtn, TweenInfo.new(0.2), {BackgroundColor3 = Theme.Main}):Play()
+    end
+end)
+
 -- [[ 4. SELECT FARM TILES (GRID SELECTOR) ]] --
 local GridBox = Instance.new("Frame", Page)
 GridBox.Size = UDim2.new(1, -10, 0, 180); GridBox.BackgroundColor3 = Theme.Item; Instance.new("UICorner", GridBox).CornerRadius = UDim.new(0, 6)
@@ -238,5 +270,46 @@ task.spawn(function()
             end
         end
         task.wait(0.1)
+    end
+end)
+
+-- [[ ENGINE AUTO COLLECT (ITEM MAGNET) ]] --
+task.spawn(function()
+    while true do
+        if _G.AutoCollect then
+            pcall(function()
+                local dropsFolder = workspace:FindFirstChild("Drops")
+                local Char = LP.Character
+                local Root = Char and Char:FindFirstChild("HumanoidRootPart")
+                
+                if dropsFolder and Root then
+                    -- Scan semua barang di folder Drops
+                    for _, item in pairs(dropsFolder:GetChildren()) do
+                        local targetPart = nil
+                        
+                        -- Cari bagian fisik dari barang tersebut agar bisa disentuh
+                        if item:IsA("BasePart") then 
+                            targetPart = item
+                        elseif item:IsA("Model") and item.PrimaryPart then 
+                            targetPart = item.PrimaryPart
+                        elseif item:FindFirstChildWhichIsA("BasePart") then 
+                            targetPart = item:FindFirstChildWhichIsA("BasePart") 
+                        end
+                        
+                        -- Eksekusi Trik Magnet (Memalsukan sentuhan kaki ke item)
+                        if targetPart then
+                            if firetouchinterest then
+                                firetouchinterest(Root, targetPart, 0) -- Sentuh
+                                firetouchinterest(Root, targetPart, 1) -- Lepas
+                            else
+                                -- Jalur alternatif jika executor tidak support firetouchinterest
+                                Root.CFrame = targetPart.CFrame
+                            end
+                        end
+                    end
+                end
+            end)
+        end
+        task.wait(0.2) -- Loop setiap 0.2 detik agar tidak lag
     end
 end)
