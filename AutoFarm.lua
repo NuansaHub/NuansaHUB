@@ -238,27 +238,94 @@ for y = 2, -2, -1 do
     end
 end
 
--- [[ ENGINE AUTO FARM ]] --
+-- [[ ENGINE AUTO COLLECT & AUTO FARM (PRIORITY SYSTEM) ]] --
+
+-- Fungsi Pintar untuk Mengambil Barang (Bypass Xeno)
+local function CollectDrops()
+    local dropsFolder = workspace:FindFirstChild("Drops")
+    if not dropsFolder then return end
+    
+    local drops = dropsFolder:GetChildren()
+    if #drops == 0 then return end -- Kalau tidak ada barang, batalkan
+    
+    local Char = LP.Character
+    local Root = Char and Char:FindFirstChild("HumanoidRootPart")
+    if not Root then return end
+    
+    -- Simpan posisi asli karaktermu sebelum memungut barang
+    local originalCFrame = Root.CFrame
+    local hasCollected = false
+    
+    for _, item in pairs(drops) do
+        if not _G.Farm_Active or not _G.AutoCollect then break end
+        
+        local targetPart = nil
+        if item:IsA("BasePart") then 
+            targetPart = item
+        elseif item:IsA("Model") and item.PrimaryPart then 
+            targetPart = item.PrimaryPart
+        else 
+            targetPart = item:FindFirstChildWhichIsA("BasePart") 
+        end
+        
+        if targetPart then
+            hasCollected = true
+            
+            -- [!] TRIK XENO: Teleportasi fisik langsung ke atas barang
+            Root.CFrame = targetPart.CFrame
+            
+            -- Coba pakai magnet eksploit jika executor mendukung
+            if firetouchinterest then
+                pcall(function()
+                    firetouchinterest(Root, targetPart, 0)
+                    firetouchinterest(Root, targetPart, 1)
+                end)
+            end
+            
+            -- Jeda 0.15 detik per barang agar server mendeteksi "sentuhan" kaki karaktermu
+            task.wait(0.15) 
+        end
+    end
+    
+    -- Setelah tas penuh/semua diambil, teleportasi KEMBALI ke posisi semula untuk lanjut farming
+    if hasCollected then
+        Root.CFrame = originalCFrame
+        task.wait(0.1) -- Jeda stabilisasi
+    end
+end
+
 local function GetCurrentGrid()
     local Char = LP.Character
     local Root = Char and Char:FindFirstChild("HumanoidRootPart")
     return Root and Vector2.new(math.floor(Root.Position.X / 4.5 + 0.5), math.floor(Root.Position.Y / 4.5 + 0.5)) or Vector2.new(0,0)
 end
 
+-- MESIN UTAMA
 task.spawn(function()
     while true do
         if _G.Farm_Active and #_G.Farm_Targets > 0 then
+            
+            -- [!] PRIORITAS 1: CEK & AMBIL BARANG SEBELUM MENARUH BLOK
+            if _G.AutoCollect then
+                CollectDrops()
+            end
+            
             local cp = GetCurrentGrid()
             
+            -- PHASE 1: FORCE PLACE
             for _, o in ipairs(_G.Farm_Targets) do
                 if not _G.Farm_Active then break end
                 local tx, ty = math.floor(cp.X + o.X), math.floor(cp.Y + o.Y)
-                if _G.Farm_SlotIndex ~= nil then pcall(function() PlaceRemote:FireServer(Vector2.new(tx, ty), _G.Farm_SlotIndex) end) end
+                
+                if _G.Farm_SlotIndex ~= nil then 
+                    pcall(function() PlaceRemote:FireServer(Vector2.new(tx, ty), _G.Farm_SlotIndex) end)
+                end
                 task.wait(_G.Farm_PlaceDelay)
             end
             
             task.wait(0.4) 
             
+            -- PHASE 2: FORCE BREAK
             for i = 1, _G.Farm_HitCount do
                 if not _G.Farm_Active then break end
                 for _, o in ipairs(_G.Farm_Targets) do
@@ -268,48 +335,13 @@ task.spawn(function()
                     task.wait(_G.Farm_HitDelay)
                 end
             end
+            
+            -- [!] PRIORITAS 2: CEK & AMBIL BARANG LAGI SETELAH BLOK HANCUR
+            if _G.AutoCollect then
+                CollectDrops()
+            end
+            
         end
         task.wait(0.1)
-    end
-end)
-
--- [[ ENGINE AUTO COLLECT (ITEM MAGNET) ]] --
-task.spawn(function()
-    while true do
-        if _G.AutoCollect then
-            pcall(function()
-                local dropsFolder = workspace:FindFirstChild("Drops")
-                local Char = LP.Character
-                local Root = Char and Char:FindFirstChild("HumanoidRootPart")
-                
-                if dropsFolder and Root then
-                    -- Scan semua barang di folder Drops
-                    for _, item in pairs(dropsFolder:GetChildren()) do
-                        local targetPart = nil
-                        
-                        -- Cari bagian fisik dari barang tersebut agar bisa disentuh
-                        if item:IsA("BasePart") then 
-                            targetPart = item
-                        elseif item:IsA("Model") and item.PrimaryPart then 
-                            targetPart = item.PrimaryPart
-                        elseif item:FindFirstChildWhichIsA("BasePart") then 
-                            targetPart = item:FindFirstChildWhichIsA("BasePart") 
-                        end
-                        
-                        -- Eksekusi Trik Magnet (Memalsukan sentuhan kaki ke item)
-                        if targetPart then
-                            if firetouchinterest then
-                                firetouchinterest(Root, targetPart, 0) -- Sentuh
-                                firetouchinterest(Root, targetPart, 1) -- Lepas
-                            else
-                                -- Jalur alternatif jika executor tidak support firetouchinterest
-                                Root.CFrame = targetPart.CFrame
-                            end
-                        end
-                    end
-                end
-            end)
-        end
-        task.wait(0.2) -- Loop setiap 0.2 detik agar tidak lag
     end
 end)
