@@ -239,8 +239,7 @@ for y = 2, -2, -1 do
 end
 
 -- [[ ENGINE AUTO COLLECT & AUTO FARM (PRIORITY SYSTEM) ]] --
-
--- Fungsi Pintar untuk Mengambil Barang (Bypass Xeno)
+-- Fungsi Pintar untuk Mengambil Barang (Bypass Xeno & Anti-Nyangkut)
 local function CollectDrops()
     local dropsFolder = workspace:FindFirstChild("Drops")
     if not dropsFolder then return end
@@ -256,41 +255,47 @@ local function CollectDrops()
     local originalCFrame = Root.CFrame
     local hasCollected = false
     
-    for _, item in pairs(drops) do
+    for _, item in ipairs(drops) do
         if not _G.Farm_Active or not _G.AutoCollect then break end
         
-        local targetPart = nil
-        if item:IsA("BasePart") then 
-            targetPart = item
-        elseif item:IsA("Model") and item.PrimaryPart then 
-            targetPart = item.PrimaryPart
-        else 
-            targetPart = item:FindFirstChildWhichIsA("BasePart") 
+        local targetCFrame = nil
+        local touchPart = nil
+        
+        -- Deteksi posisi barang yang lebih cerdas (Mendukung Model & Part)
+        if item:IsA("Model") then
+            targetCFrame = item:GetPivot() -- Mengambil titik tengah model
+            touchPart = item.PrimaryPart or item:FindFirstChildWhichIsA("BasePart")
+        elseif item:IsA("BasePart") then
+            targetCFrame = item.CFrame
+            touchPart = item
+        else
+            touchPart = item:FindFirstChildWhichIsA("BasePart")
+            if touchPart then targetCFrame = touchPart.CFrame end
         end
         
-        if targetPart then
+        if targetCFrame and touchPart then
             hasCollected = true
             
-            -- [!] TRIK XENO: Teleportasi fisik langsung ke atas barang
-            Root.CFrame = targetPart.CFrame
+            -- [!] KUNCI FIX: Teleportasi +3 di Y (Melayang sedikit di atas tanah)
+            Root.CFrame = targetCFrame + Vector3.new(0, 3, 0)
             
-            -- Coba pakai magnet eksploit jika executor mendukung
+            -- Pemicu ekstra untuk executor yang support
             if firetouchinterest then
                 pcall(function()
-                    firetouchinterest(Root, targetPart, 0)
-                    firetouchinterest(Root, targetPart, 1)
+                    firetouchinterest(Root, touchPart, 0)
+                    firetouchinterest(Root, touchPart, 1)
                 end)
             end
             
-            -- Jeda 0.15 detik per barang agar server mendeteksi "sentuhan" kaki karaktermu
-            task.wait(0.15) 
+            -- Jeda 0.2 detik agar karakter jatuh menyentuh barang
+            task.wait(0.2) 
         end
     end
     
-    -- Setelah tas penuh/semua diambil, teleportasi KEMBALI ke posisi semula untuk lanjut farming
+    -- Teleportasi KEMBALI ke posisi semula untuk lanjut farming
     if hasCollected then
         Root.CFrame = originalCFrame
-        task.wait(0.1) -- Jeda stabilisasi
+        task.wait(0.2) -- Jeda stabilisasi agar tidak pusing
     end
 end
 
