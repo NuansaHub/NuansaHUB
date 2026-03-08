@@ -24,7 +24,7 @@ end
 _G.Farm_Active = false
 _G.AutoCollect = false
 _G.Farm_PlaceDelay = 0.15 
-_G.Farm_HitDelay = 0.13   
+_G.Farm_HitDelay = 0.15   
 _G.Farm_HitCount = 3      
 _G.Farm_SlotIndex = 1     
 _G.Farm_Targets = {}
@@ -39,26 +39,50 @@ local Theme = {
 
 local SlotInputBox = nil
 
--- [[ 0. TOMBOL START ]] --
+-- [[ 0. TOMBOL START (GAYA TOGGLE) ]] --
 local StartFrame = Instance.new("Frame", Page)
-StartFrame.Size = UDim2.new(1, -10, 0, 45); StartFrame.BackgroundTransparency = 1; StartFrame.ZIndex = 1
+StartFrame.Size = UDim2.new(1, -10, 0, 35)
+StartFrame.BackgroundColor3 = Theme.Item -- Samakan dengan warna baris lain
+Instance.new("UICorner", StartFrame).CornerRadius = UDim.new(0, 6)
+StartFrame.ZIndex = 1
 
+-- Tambahkan Label Teks di sebelah kiri
+local StartLbl = Instance.new("TextLabel", StartFrame)
+StartLbl.Size = UDim2.new(0.6, 0, 1, 0)
+StartLbl.Position = UDim2.new(0, 10, 0, 0)
+StartLbl.Text = "Auto Farm" 
+StartLbl.TextColor3 = Theme.Text
+StartLbl.Font = Enum.Font.Gotham
+StartLbl.TextSize = 12
+StartLbl.BackgroundTransparency = 1
+StartLbl.TextXAlignment = Enum.TextXAlignment.Left
+
+-- Tombol Saklar (Toggle) di sebelah kanan
 local StartBtn = Instance.new("TextButton", StartFrame)
-StartBtn.Size = UDim2.new(1, 0, 1, 0); StartBtn.BackgroundColor3 = Theme.Main
-StartBtn.Text = "AUTO FARM : OFF"; StartBtn.TextColor3 = Color3.fromRGB(255, 80, 80)
-StartBtn.Font = Enum.Font.GothamBlack; StartBtn.TextSize = 14; Instance.new("UICorner", StartBtn).CornerRadius = UDim.new(0, 8)
-local StartStroke = Instance.new("UIStroke", StartBtn); StartStroke.Color = Color3.fromRGB(255, 80, 80); StartStroke.Thickness = 1.5
+StartBtn.Size = UDim2.new(0.45, -10, 0.1, 22)
+StartBtn.Position = UDim2.new(0.58, -10, 0.5, -11)
+StartBtn.BackgroundColor3 = Theme.Main
+StartBtn.Text = "OFF"
+StartBtn.TextColor3 = Color3.fromRGB(255, 80, 80)
+StartBtn.Font = Enum.Font.GothamBold
+StartBtn.TextSize = 10
+Instance.new("UICorner", StartBtn).CornerRadius = UDim.new(0, 4)
+local StartStroke = Instance.new("UIStroke", StartBtn)
+StartStroke.Color = Color3.fromRGB(255, 80, 80)
+StartStroke.Thickness = 1
 
 StartBtn.MouseButton1Click:Connect(function()
     _G.Farm_Active = not _G.Farm_Active
     if _G.Farm_Active then
-        StartBtn.Text = "AUTO FARM : ON"
-        StartBtn.TextColor3 = Theme.Accent; StartStroke.Color = Theme.Accent
-        TS:Create(StartBtn, TweenInfo.new(0.3), {BackgroundColor3 = Theme.Item}):Play()
+        StartBtn.Text = "ON"
+        StartBtn.TextColor3 = Theme.Accent
+        StartStroke.Color = Theme.Accent
+        TS:Create(StartBtn, TweenInfo.new(0.2), {BackgroundColor3 = Theme.Main}):Play()
     else
-        StartBtn.Text = "AUTO FARM : OFF"
-        StartBtn.TextColor3 = Color3.fromRGB(255, 80, 80); StartStroke.Color = Color3.fromRGB(255, 80, 80)
-        TS:Create(StartBtn, TweenInfo.new(0.3), {BackgroundColor3 = Theme.Main}):Play()
+        StartBtn.Text = "OFF"
+        StartBtn.TextColor3 = Color3.fromRGB(255, 80, 80)
+        StartStroke.Color = Color3.fromRGB(255, 80, 80)
+        TS:Create(StartBtn, TweenInfo.new(0.2), {BackgroundColor3 = Theme.Main}):Play()
     end
 end)
 
@@ -136,16 +160,16 @@ local function CreateSetting(label, defaultVal, globalVar)
     return Box 
 end
 
-SlotInputBox = CreateSetting("Manual Slot Tas:", _G.Farm_SlotIndex, "Farm_SlotIndex") 
-CreateSetting("Place Delay (Detik):", _G.Farm_PlaceDelay, "Farm_PlaceDelay")
-CreateSetting("Hit Delay (Detik):", _G.Farm_HitDelay, "Farm_HitDelay")
-CreateSetting("Hit Count (Pukulan):", _G.Farm_HitCount, "Farm_HitCount")
+SlotInputBox = CreateSetting("Manual Slot BP:", _G.Farm_SlotIndex, "Farm_SlotIndex") 
+CreateSetting("Place Delay (Second):", _G.Farm_PlaceDelay, "Farm_PlaceDelay")
+CreateSetting("Hit Delay (Second):", _G.Farm_HitDelay, "Farm_HitDelay")
+CreateSetting("Hit Count:", _G.Farm_HitCount, "Farm_HitCount")
 
 -- [[ 3. AUTO COLLECT TOGGLE ]] --
 local CollectFrame = Instance.new("Frame", Page)
 CollectFrame.Size = UDim2.new(1, -10, 0, 35); CollectFrame.BackgroundColor3 = Theme.Item; Instance.new("UICorner", CollectFrame).CornerRadius = UDim.new(0, 6); CollectFrame.ZIndex = 1
 local CollectLbl = Instance.new("TextLabel", CollectFrame); CollectLbl.Size = UDim2.new(0.6, 0, 1, 0); CollectLbl.Position = UDim2.new(0, 10, 0, 0); CollectLbl.Text = "Auto Collect"; CollectLbl.TextColor3 = Theme.Text; CollectLbl.Font = Enum.Font.Gotham; CollectLbl.TextSize = 12; CollectLbl.BackgroundTransparency = 1; CollectLbl.TextXAlignment = Enum.TextXAlignment.Left
-local CollectBtn = Instance.new("TextButton", CollectFrame); CollectBtn.Size = UDim2.new(0, 50, 0, 22); CollectBtn.Position = UDim2.new(1, -60, 0.5, -11); CollectBtn.BackgroundColor3 = Theme.Main; CollectBtn.Text = "OFF"; CollectBtn.TextColor3 = Color3.fromRGB(255, 80, 80); CollectBtn.Font = Enum.Font.GothamBold; CollectBtn.TextSize = 10; Instance.new("UICorner", CollectBtn).CornerRadius = UDim.new(0, 4); local CollectStroke = Instance.new("UIStroke", CollectBtn); CollectStroke.Color = Color3.fromRGB(255, 80, 80); CollectStroke.Thickness = 1
+local CollectBtn = Instance.new("TextButton", CollectFrame); CollectBtn.Size = UDim2.new(0.45, -10, 0.1, 22); CollectBtn.Position = UDim2.new(0.58, -10, 0.5, -11); CollectBtn.BackgroundColor3 = Theme.Main; CollectBtn.Text = "OFF"; CollectBtn.TextColor3 = Color3.fromRGB(255, 80, 80); CollectBtn.Font = Enum.Font.GothamBold; CollectBtn.TextSize = 10; Instance.new("UICorner", CollectBtn).CornerRadius = UDim.new(0, 4); local CollectStroke = Instance.new("UIStroke", CollectBtn); CollectStroke.Color = Color3.fromRGB(255, 80, 80); CollectStroke.Thickness = 1
 
 CollectBtn.MouseButton1Click:Connect(function()
     _G.AutoCollect = not _G.AutoCollect
