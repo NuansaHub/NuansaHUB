@@ -234,7 +234,6 @@ local function StealthCollectDrops()
     
     local PosisiAsli2D = Vector2.new(MyHitbox.Position.X, MyHitbox.Position.Y)
     local PosisiAsli3D = MyHitbox.Position
-    
     local hasCollected = false
 
     for _, item in ipairs(Drops:GetChildren()) do
@@ -244,10 +243,11 @@ local function StealthCollectDrops()
         
         if targetPart then
             hasCollected = true
-            -- FIX LUBANG: Kirim koordinat sedikit di atas barang (+3) agar tidak nabrak lantai
+            -- FIX LUBANG: Kita kasih tinggi +3 biar gak dianggap nembus lantai bawah
             local fakeX = targetPart.Position.X
             local fakeY = targetPart.Position.Y + 3 
             
+            -- Pindahkan hitbox lokal & kirim paket posisi ke server
             MyHitbox.Position = Vector3.new(fakeX, fakeY, PosisiAsli3D.Z)
             pcall(function() MyRemote:FireServer(Vector2.new(fakeX, fakeY)) end)
             
@@ -255,10 +255,11 @@ local function StealthCollectDrops()
                 firetouchinterest(MyHitbox, targetPart, 0)
                 firetouchinterest(MyHitbox, targetPart, 1)
             end
-            task.wait(0.12) -- Sedikit lebih cepat
+            task.wait(0.1) -- Delay tipis biar server sempet proses
         end
     end
     
+    -- Balikin posisi ke karakter asli
     if hasCollected then
         MyHitbox.Position = PosisiAsli3D
         pcall(function() MyRemote:FireServer(PosisiAsli2D) end)
