@@ -111,6 +111,64 @@ end
 -- Terapkan fungsi ke Main Frame melalui handle segitiga
 MakeResizable(Main, ResizeHandle)
 
+-- [[ ALPHA PROJECT - GLOBAL PLAYER COORDINATES ]] --
+local RunService = game:GetService("RunService")
+local Players = game:GetService("Players")
+local LP = Players.LocalPlayer
+
+local function CreateCoordinateDisplay(character)
+    if not character then return end
+    
+    local head = character:WaitForChild("Head", 5)
+    local root = character:WaitForChild("HumanoidRootPart", 5)
+    if not head or not root then return end
+
+    if head:FindFirstChild("AlphaCoords") then
+        head.AlphaCoords:Destroy()
+    end
+
+    local bg = Instance.new("BillboardGui")
+    bg.Name = "AlphaCoords"
+    bg.Adornee = head
+    bg.Size = UDim2.new(0, 150, 0, 40)
+    bg.StudsOffset = Vector3.new(0, 2.5, 0) 
+    bg.AlwaysOnTop = true
+
+    local txt = Instance.new("TextLabel", bg)
+    txt.Size = UDim2.new(1, 0, 1, 0)
+    txt.BackgroundTransparency = 1
+    txt.TextColor3 = Color3.fromRGB(0, 255, 220) -- Warna Neon Cyan
+    txt.TextStrokeTransparency = 0 
+    txt.Font = Enum.Font.GothamBold
+    txt.TextSize = 12
+
+    bg.Parent = head
+
+    local connection
+    connection = RunService.RenderStepped:Connect(function()
+        if not character or not character.Parent or not root then
+            connection:Disconnect()
+            return
+        end
+        
+        local gridX = math.floor(root.Position.X / 4.5 + 0.5)
+        local gridY = math.floor(root.Position.Y / 4.5 + 0.5)
+        
+        txt.Text = "[ X: " .. gridX .. " | Y: " .. gridY .. " ]"
+    end)
+end
+
+-- Nyalakan untuk karakter saat ini
+if LP.Character then
+    CreateCoordinateDisplay(LP.Character)
+end
+
+-- Mencegah penumpukan event jika NuansaHub di-execute berulang kali
+if getgenv().AlphaCoordsConnection then
+    getgenv().AlphaCoordsConnection:Disconnect()
+end
+getgenv().AlphaCoordsConnection = LP.CharacterAdded:Connect(CreateCoordinateDisplay)
+
 -- [[ TOMBOL MINIMIZE & CLOSE ]] --
 -- Close (X)
 local CloseBtn = Instance.new("TextButton", Header)
