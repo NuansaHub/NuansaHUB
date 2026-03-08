@@ -96,10 +96,12 @@ local function GetInventoryItems()
         for slotIndex, itemData in pairs(InventoryModule.Stacks) do
             if type(itemData) == "table" and itemData.Id then
                 local itemStringID = itemData.Id 
-                -- FIX: Membaca tabel ItemsData, bukan memanggil fungsi nil
+                
+                -- [!] KUNCI FIX: Mengambil data dari Tabel (ItemsData), BUKAN memanggil fungsi!
                 local dataInfo = ItemsManager.ItemsData and ItemsManager.ItemsData[itemStringID]
                 local realName = (dataInfo and dataInfo.Name) and dataInfo.Name or itemStringID
                 
+                -- Fix format Sapling
                 if type(itemStringID) == "string" and string.sub(itemStringID, -8) == "_sapling" then
                     if not string.match(string.lower(realName), "sapling") then
                         realName = realName .. " Sapling"
@@ -111,7 +113,10 @@ local function GetInventoryItems()
             end
         end
     end)
+    
+    -- Fallback anti-error jika tas benar-benar kosong atau belum memuat
     if next(items) == nil then items["Tas Kosong / Loading"] = 1 end
+    
     return items
 end
 
@@ -207,6 +212,19 @@ local function GetCurrentGrid()
     return Root and Vector2.new(math.floor(Root.Position.X / 4.5 + 0.5), math.floor(Root.Position.Y / 4.5 + 0.5)) or Vector2.new(0,0)
 end
 
+-- [FITUR BARU] Fungsi untuk memalsukan langkah kecil agar tidak terdeteksi teleport
+local function SmoothMove(remote, startPos, endPos)
+    local dist = (endPos - startPos).Magnitude
+    local steps = math.ceil(dist / 1.5) -- Membagi jarak jadi beberapa langkah kecil
+    if steps < 1 then steps = 1 end
+    
+    for i = 1, steps do
+        local currentPos = startPos:Lerp(endPos, i / steps)
+        pcall(function() remote:FireServer(currentPos) end)
+        task.wait(0.04) -- Jeda menyesuaikan kecepatan server (20 Tick per detik)
+    end
+end
+
 -- Fungsi Pintar untuk Mengambil Barang (Pola Bintang Anti-Nyangkut)
 local function StealthCollectDrops()
     local Drops = workspace:FindFirstChild("Drops")
@@ -217,40 +235,55 @@ local function StealthCollectDrops()
     if not MyRemote then return end
 
     local MyHitbox = workspace:FindFirstChild("Hitbox") and workspace.Hitbox:FindFirstChild(LP.Name)
-    if not MyHitbox then return end
+    local PosisiAsli = MyHitbox and Vector2.new(MyHitbox.Position.X, MyHitbox.Position.Y) or Vector2.new(0,0)
     
-    local PosisiAsli2D = Vector2.new(MyHitbox.Position.X, MyHitbox.Position.Y)
-    local PosisiAsli3D = MyHitbox.Position
+    local cp = GetCurrentGrid()
+    local validGrids = {}
+    for _, o in ipairs(_G.Farm_Targets) do
+        local tx, ty = math.floor(cp.X + o.X), math.floor(cp.Y + o.Y)
+        validGrids[tx .. "," .. ty] = true 
+    end
+
     local hasCollected = false
 
     for _, item in ipairs(Drops:GetChildren()) do
         if not _G.Farm_Active or not _G.AutoCollect then break end
         
-        local targetPart = item:IsA("Model") and (item.PrimaryPart or item:FindFirstChildWhichIsA("BasePart")) or (item:IsA("BasePart") and item or item:FindFirstChildWhichIsA("BasePart"))
+        local targetPart = nil
+        if item:IsA("Model") then targetPart = item.PrimaryPart or item:FindFirstChildWhichIsA("BasePart")
+        elseif item:IsA("BasePart") then targetPart = item
+        else targetPart = item:FindFirstChildWhichIsA("BasePart") end
         
         if targetPart then
-            hasCollected = true
-            -- FIX LUBANG: Kita kasih tinggi +3 biar gak dianggap nembus lantai bawah
-            local fakeX = targetPart.Position.X
-            local fakeY = targetPart.Position.Y + 3 
+            local posBarang = targetPart.Position
+            local itemX = math.floor(posBarang.X / 4.5 + 0.5)
+            local itemY = math.floor(posBarang.Y / 4.5 + 0.5)
             
-            -- Pindahkan hitbox lokal & kirim paket posisi ke server
-            MyHitbox.Position = Vector3.new(fakeX, fakeY, PosisiAsli3D.Z)
-            pcall(function() MyRemote:FireServer(Vector2.new(fakeX, fakeY)) end)
-            
-            if firetouchinterest then
-                firetouchinterest(MyHitbox, targetPart, 0)
-                firetouchinterest(MyHitbox, targetPart, 1)
+            if validGrids[itemX .. "," .. itemY] then
+                hasCollected = true
+                local KoordinatPalsu = Vector2.new(posBarang.X, posBarang.Y)
+                
+                -- 1. BERJALAN KILAT DARI TENGAH KE BARANG
+                SmoothMove(MyRemote, PosisiAsli, KoordinatPalsu)
+                
+                if MyHitbox and firetouchinterest then
+                    pcall(function()
+                        firetouchinterest(MyHitbox, targetPart, 0)
+                        firetouchinterest(MyHitbox, targetPart, 1)
+                    end)
+                end
+                task.wait(0.05) -- Biarkan barang masuk ke tas
+                
+                -- 2. BERJALAN KILAT KEMBALI KE TENGAH SEBELUM MENGAMBIL BARANG LAIN!
+                SmoothMove(MyRemote, KoordinatPalsu, PosisiAsli)
+                task.wait(0.05)
             end
-            task.wait(0.1) -- Delay tipis biar server sempet proses
         end
     end
     
-    -- Balikin posisi ke karakter asli
+    -- Pastikan bot benar-benar lapor ke server kalau dia ada di tengah di akhir sesi
     if hasCollected then
-        MyHitbox.Position = PosisiAsli3D
-        pcall(function() MyRemote:FireServer(PosisiAsli2D) end)
-        task.wait(0.1)
+        pcall(function() MyRemote:FireServer(PosisiAsli) end)
     end
 end
 
