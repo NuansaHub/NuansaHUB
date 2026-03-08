@@ -26,9 +26,9 @@ end
 _G.Farm_Active = false
 _G.Farm_BlockID = 5       -- Default ID
 _G.Farm_PlaceDelay = 0.15 -- Default Delay Place
-_G.Farm_HitDelay = 0.08   -- Default Delay Hit
+_G.Farm_HitDelay = 0.13   -- Default Delay Hit
 _G.Farm_HitCount = 3      -- Default Hit
-_G.Farm_SlotIndex = nil -- Default ID
+_G.Farm_SlotIndex = 1 -- Default ID
 _G.Farm_Targets = {}
 
 local Theme = {
@@ -138,6 +138,8 @@ local function CreateSetting(label, defaultVal, globalVar)
     Box.FocusLost:Connect(function() _G[globalVar] = tonumber(Box.Text) or defaultVal end)
 end
 
+-- [!] TAMBAHKAN BARIS INI UNTUK PENGGUNA XENO
+CreateSetting("Manual Slot Tas (Xeno Fix):", _G.Farm_SlotIndex, "Farm_SlotIndex") 
 CreateSetting("Place Delay (Detik):", _G.Farm_PlaceDelay, "Farm_PlaceDelay")
 CreateSetting("Hit Delay (Detik):", _G.Farm_HitDelay, "Farm_HitDelay")
 CreateSetting("Hit Count (Pukulan):", _G.Farm_HitCount, "Farm_HitCount")
