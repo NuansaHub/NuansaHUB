@@ -41,57 +41,44 @@ local Theme = {
 
 -- [[ 1. SISTEM INVENTORY & DROPDOWN (SLOT INDEX MODE) ]] --
 local function GetInventoryItems()
-    local groupedItems = {}
-    local itemsForDropdown = {}
+    local items = {}
     
-    local success, err = pcall(function()
+    pcall(function()
         local RS = game:GetService("ReplicatedStorage")
-        
-        -- [!] KUNCI FIX: Gunakan getrenv().require untuk PC Executor
-        local safeRequire = getrenv and getrenv().require or require
-        
-        local InventoryModule = safeRequire(RS:WaitForChild("Modules"):WaitForChild("Inventory"))
-        local ItemsManager = safeRequire(RS:WaitForChild("Managers"):WaitForChild("ItemsManager"))
+        local InventoryModule = require(RS.Modules.Inventory)
+        local ItemsManager = require(RS.Managers.ItemsManager)
 
-        if type(InventoryModule.Stacks) ~= "table" then return end 
-
+        -- KITA MEMBACA KEY 'slotIndex' (Nomor kotak tas)
         for slotIndex, itemData in pairs(InventoryModule.Stacks) do
             if type(itemData) == "table" and itemData.Id then
-                local itemStringID = itemData.Id 
                 local amount = itemData.Amount or 1
+                local itemStringID = itemData.Id 
                 
-                if not groupedItems[itemStringID] then
-                    groupedItems[itemStringID] = { TotalAmount = 0, RealName = itemStringID }
-                    
-                    pcall(function()
-                        local dataInfo = ItemsManager.RequestItemData(itemStringID)
-                        if dataInfo and dataInfo.Name then
-                            groupedItems[itemStringID].RealName = dataInfo.Name
-                        end
-                    end)
+                local dataInfo = ItemsManager.RequestItemData(itemStringID)
+                local realName = (dataInfo and dataInfo.Name) and dataInfo.Name or itemStringID
+                
+                -- Tampilan Dropdown: Dirt (x50) [Slot: 12]
+                local displayName = realName .. " (x" .. amount .. ") [Slot: " .. tostring(slotIndex) .. "]"
+                
+                -- KITA SIMPAN NOMOR SLOT-NYA! Inilah yang diminta server.
+                if not items[displayName] then
+                    items[displayName] = slotIndex
                 end
-                
-                groupedItems[itemStringID].TotalAmount = groupedItems[itemStringID].TotalAmount + amount
             end
         end
     end)
     
-    if not success then warn("ALPHA PROJECT ERROR: ", tostring(err)) end
-    
-    for itemID, data in pairs(groupedItems) do
-        local displayName = data.RealName .. " (Total: " .. data.TotalAmount .. ")"
-        itemsForDropdown[displayName] = itemID 
+    if next(items) == nil then
+        items["No Items Found"] = nil
     end
     
-    if next(itemsForDropdown) == nil then
-        itemsForDropdown["Inventory Loading / Empty..."] = "KOSONG"
-    end
-    
-    return itemsForDropdown
+    return items
 end
 
+-- UI Dropdown
 local DropdownFrame = Instance.new("Frame", Page)
 DropdownFrame.Size = UDim2.new(1, -10, 0, 35); DropdownFrame.BackgroundColor3 = Theme.Item; Instance.new("UICorner", DropdownFrame)
+
 local DropBtn = Instance.new("TextButton", DropdownFrame)
 DropBtn.Size = UDim2.new(1, 0, 1, 0); DropBtn.BackgroundTransparency = 1; DropBtn.Text = "Refresh & Select Block ▼"
 DropBtn.TextColor3 = Theme.Accent; DropBtn.Font = Enum.Font.GothamBold; DropBtn.TextSize = 12
@@ -100,27 +87,25 @@ local DropList = Instance.new("ScrollingFrame", Page)
 DropList.Size = UDim2.new(1, -10, 0, 150); DropList.BackgroundColor3 = Theme.Item; DropList.Visible = false
 DropList.BorderSizePixel = 0; DropList.ScrollBarThickness = 2; Instance.new("UICorner", DropList)
 local DropLayout = Instance.new("UIListLayout", DropList); DropLayout.Padding = UDim.new(0, 2)
-DropList.ZIndex = 10 -- Naikkan Z-Index agar selalu di atas pengaturan lain
+DropList.ZIndex = 5 -- Supaya tidak tertimpa UI bawahnya
 
+-- Fungsi untuk mengisi/me-refresh daftar item
 local function RefreshDropdown()
     for _, child in pairs(DropList:GetChildren()) do
         if child:IsA("TextButton") then child:Destroy() end
     end
     
-    for displayName, itemID in pairs(GetInventoryItems()) do
+    for displayName, slotIndex in pairs(GetInventoryItems()) do
         local ItemBtn = Instance.new("TextButton", DropList)
         ItemBtn.Size = UDim2.new(1, 0, 0, 25); ItemBtn.BackgroundColor3 = Theme.Main
         ItemBtn.Text = " " .. displayName; ItemBtn.TextColor3 = Theme.Text
         ItemBtn.Font = Enum.Font.Gotham; ItemBtn.TextSize = 11; Instance.new("UICorner", ItemBtn)
-        ItemBtn.TextXAlignment = Enum.TextXAlignment.Left; ItemBtn.ZIndex = 11
+        ItemBtn.TextXAlignment = Enum.TextXAlignment.Left; ItemBtn.ZIndex = 6
         
         ItemBtn.MouseButton1Click:Connect(function()
-            if itemID ~= "KOSONG" then
-                _G.Farm_TargetItemID = itemID 
-                DropBtn.Text = "Selected: " .. displayName .. " ▼"
-            else
-                DropBtn.Text = "Refresh & Select Block ▼"
-            end
+            -- Simpan Nomor Slot ke variabel
+            _G.Farm_SlotIndex = slotIndex 
+            DropBtn.Text = "Selected: " .. displayName .. " ▼"
             DropList.Visible = false
         end)
     end
@@ -129,7 +114,9 @@ end
 
 -- Klik tombol dropdown: Refresh tas dulu, baru munculkan list
 DropBtn.MouseButton1Click:Connect(function() 
-    if not DropList.Visible then RefreshDropdown() end
+    if not DropList.Visible then
+        RefreshDropdown()
+    end
     DropList.Visible = not DropList.Visible 
 end)
 
@@ -204,28 +191,6 @@ local function GetCurrentGrid()
     local Char = LP.Character
     local Root = Char and Char:FindFirstChild("HumanoidRootPart")
     return Root and Vector2.new(math.floor(Root.Position.X / 4.5 + 0.5), math.floor(Root.Position.Y / 4.5 + 0.5)) or Vector2.new(0,0)
-end
-
--- FUNGSI PELACAK SLOT OTOMATIS (PC FIX)
-local function GetValidSlot(targetItemID)
-    if not targetItemID then return nil end
-    local success, result = pcall(function()
-        local RS = game:GetService("ReplicatedStorage")
-        
-        -- [!] KUNCI FIX: Gunakan getrenv() di sini juga
-        local safeRequire = getrenv and getrenv().require or require
-        local InventoryModule = safeRequire(RS:WaitForChild("Modules"):WaitForChild("Inventory"))
-        
-        for slotIndex, itemData in pairs(InventoryModule.Stacks) do
-            if type(itemData) == "table" and itemData.Id == targetItemID then
-                if (itemData.Amount or 1) > 0 then
-                    return slotIndex
-                end
-            end
-        end
-        return nil
-    end)
-    return success and result or nil
 end
 
 task.spawn(function()
