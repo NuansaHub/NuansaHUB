@@ -248,11 +248,11 @@ local function StealthCollectDrops()
                         firetouchinterest(MyHitbox, targetPart, 1)
                     end)
                 end
-                task.wait(0.01) -- Biarkan barang masuk ke tas
+                task.wait(0.05) -- Biarkan barang masuk ke tas
                 
                 -- 2. BERJALAN KILAT KEMBALI KE TENGAH SEBELUM MENGAMBIL BARANG LAIN!
                 SmoothMove(MyRemote, KoordinatPalsu, PosisiAsli)
-                task.wait(0.01)
+                task.wait(0.05)
             end
         end
     end
