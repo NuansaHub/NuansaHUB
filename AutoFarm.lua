@@ -1,4 +1,4 @@
--- [[ ALPHA PROJECT - ADVANCED AUTO FARM MODULE ]] --
+-- [[ ALPHA PROJECT - ZONHUB STYLE AUTO FARM ]] --
 
 local CoreGui = game:GetService("CoreGui")
 local Players = game:GetService("Players")
@@ -10,13 +10,12 @@ local LP = Players.LocalPlayer
 local PlaceRemote = RS:WaitForChild("Remotes"):WaitForChild("PlayerPlaceItem")
 local FistRemote = RS:WaitForChild("Remotes"):WaitForChild("PlayerFist")
 
--- Cari Halaman "Auto Farm" di UI Alpha Project
+-- Cari Halaman "Auto Farm"
 local ScreenGui = getgenv().AlphaProjectUI
 if not ScreenGui then warn("Alpha Project UI tidak ditemukan!") return end
 local Page = ScreenGui:FindFirstChild("Auto FarmPage", true)
 if not Page then warn("Halaman Auto Farm tidak ditemukan!") return end
 
--- Bersihkan isi halaman jika module di-execute ulang
 for _, child in pairs(Page:GetChildren()) do
     if not child:IsA("UIListLayout") and not child:IsA("UIPadding") then child:Destroy() end
 end
@@ -27,18 +26,17 @@ _G.Farm_BlockID = 5
 _G.Farm_PlaceDelay = 0.15 
 _G.Farm_HitDelay = 0.13   
 _G.Farm_HitCount = 3      
-_G.Farm_SlotIndex = 1     -- Default Slot
+_G.Farm_SlotIndex = 1     
 _G.Farm_Targets = {}
 
 local Theme = {
-    Main = Color3.fromRGB(15, 17, 20),
-    Accent = Color3.fromRGB(0, 255, 220), 
-    Item = Color3.fromRGB(25, 28, 32),
+    Main = Color3.fromRGB(15, 17, 20),    -- Warna Paling Gelap (Background Tombol)
+    Item = Color3.fromRGB(30, 33, 38),    -- Warna Abu Gelap (Background Baris)
+    Accent = Color3.fromRGB(0, 255, 220), -- Warna Neon
     Text = Color3.fromRGB(240, 245, 255),
     SubText = Color3.fromRGB(160, 165, 175)
 }
 
--- Variabel penampung untuk Sinkronisasi Kotak Teks
 local SlotInputBox = nil
 
 -- [[ 0. TOMBOL START (DI ATAS) ]] --
@@ -48,7 +46,7 @@ StartFrame.Size = UDim2.new(1, -10, 0, 45); StartFrame.BackgroundTransparency = 
 local StartBtn = Instance.new("TextButton", StartFrame)
 StartBtn.Size = UDim2.new(1, 0, 1, 0); StartBtn.BackgroundColor3 = Theme.Main
 StartBtn.Text = "AUTO FARM : OFF"; StartBtn.TextColor3 = Color3.fromRGB(255, 80, 80)
-StartBtn.Font = Enum.Font.GothamBlack; StartBtn.TextSize = 14; Instance.new("UICorner", StartBtn)
+StartBtn.Font = Enum.Font.GothamBlack; StartBtn.TextSize = 14; Instance.new("UICorner", StartBtn).CornerRadius = UDim.new(0, 8)
 local StartStroke = Instance.new("UIStroke", StartBtn); StartStroke.Color = Color3.fromRGB(255, 80, 80); StartStroke.Thickness = 1.5
 
 StartBtn.MouseButton1Click:Connect(function()
@@ -64,7 +62,7 @@ StartBtn.MouseButton1Click:Connect(function()
     end
 end)
 
--- [[ 1. SISTEM INVENTORY & DROPDOWN ]] --
+-- [[ 1. SISTEM INVENTORY & DROPDOWN (ZONHUB STYLE) ]] --
 local function GetInventoryItems()
     local items = {}
     pcall(function()
@@ -79,58 +77,64 @@ local function GetInventoryItems()
                 local dataInfo = ItemsManager.RequestItemData(itemStringID)
                 local realName = (dataInfo and dataInfo.Name) and dataInfo.Name or itemStringID
                 
-                local displayName = realName .. " (x" .. amount .. ") [Slot: " .. tostring(slotIndex) .. "]"
+                -- Format text agar lebih bersih di list
+                local displayName = realName .. " [" .. tostring(slotIndex) .. "]"
                 if not items[displayName] then items[displayName] = slotIndex end
             end
         end
     end)
-    if next(items) == nil then items["No Items Found"] = nil end
+    if next(items) == nil then items["Tas Kosong / Loading"] = nil end
     return items
 end
 
--- Desain Dropdown Dibuat Mirip Menu Settings Lainnya
-local DropdownFrame = Instance.new("Frame", Page)
-DropdownFrame.Size = UDim2.new(1, -10, 0, 30); DropdownFrame.BackgroundTransparency = 1
+-- Baris Dropdown Utama
+local DropRow = Instance.new("Frame", Page)
+DropRow.Size = UDim2.new(1, -10, 0, 35)
+DropRow.BackgroundColor3 = Theme.Item
+Instance.new("UICorner", DropRow).CornerRadius = UDim.new(0, 6)
+DropRow.ZIndex = 50 -- ZIndex tinggi agar dropdown melayang di atas segalanya
 
-local DropLbl = Instance.new("TextLabel", DropdownFrame)
-DropLbl.Size = UDim2.new(0.6, 0, 1, 0); DropLbl.Text = "Pilih Block (Delta/PC):"; DropLbl.TextColor3 = Theme.Text
+local DropLbl = Instance.new("TextLabel", DropRow)
+DropLbl.Size = UDim2.new(0.5, 0, 1, 0); DropLbl.Position = UDim2.new(0, 10, 0, 0)
+DropLbl.Text = "Target Farm Block"; DropLbl.TextColor3 = Theme.Text
 DropLbl.Font = Enum.Font.Gotham; DropLbl.TextSize = 12; DropLbl.BackgroundTransparency = 1; DropLbl.TextXAlignment = Enum.TextXAlignment.Left
 
-local DropBtn = Instance.new("TextButton", DropdownFrame)
-DropBtn.Size = UDim2.new(0.35, 0, 0.8, 0); DropBtn.Position = UDim2.new(0.65, 0, 0.1, 0)
-DropBtn.BackgroundColor3 = Theme.Item; DropBtn.TextColor3 = Theme.Accent; DropBtn.Font = Enum.Font.GothamBold; DropBtn.TextSize = 11
-DropBtn.Text = "Buka List ▼"; Instance.new("UICorner", DropBtn)
+local DropBtn = Instance.new("TextButton", DropRow)
+DropBtn.Size = UDim2.new(0.45, -10, 0.8, 0); DropBtn.Position = UDim2.new(0.55, 0, 0.1, 0)
+DropBtn.BackgroundColor3 = Theme.Main; DropBtn.Text = "Select Block..."
+DropBtn.TextColor3 = Theme.SubText; DropBtn.Font = Enum.Font.Gotham; DropBtn.TextSize = 11
+Instance.new("UICorner", DropBtn).CornerRadius = UDim.new(0, 6)
 
--- List Dropdown
-local DropList = Instance.new("ScrollingFrame", Page)
-DropList.Size = UDim2.new(1, -10, 0, 150); DropList.BackgroundColor3 = Theme.Item; DropList.Visible = false
-DropList.BorderSizePixel = 0; DropList.ScrollBarThickness = 2; Instance.new("UICorner", DropList)
-local DropLayout = Instance.new("UIListLayout", DropList); DropLayout.Padding = UDim.new(0, 2)
-DropList.ZIndex = 10 -- ZIndex tinggi agar menimpa menu bawahnya
+-- List Dropdown Floating (Melayang)
+local DropList = Instance.new("ScrollingFrame", DropRow)
+DropList.Size = UDim2.new(0.45, -10, 0, 120); DropList.Position = UDim2.new(0.55, 0, 1.1, 0)
+DropList.BackgroundColor3 = Theme.Main; DropList.Visible = false
+DropList.BorderSizePixel = 0; DropList.ScrollBarThickness = 2
+DropList.ZIndex = 100 -- Sangat tinggi agar tidak tertimpa UI bawah
+Instance.new("UICorner", DropList).CornerRadius = UDim.new(0, 6)
+
+local DropLayout = Instance.new("UIListLayout", DropList)
+DropLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+Instance.new("UIPadding", DropList).PaddingTop = UDim.new(0, 5)
 
 local function RefreshDropdown()
     for _, child in pairs(DropList:GetChildren()) do if child:IsA("TextButton") then child:Destroy() end end
     
     for displayName, slotIndex in pairs(GetInventoryItems()) do
         local ItemBtn = Instance.new("TextButton", DropList)
-        ItemBtn.Size = UDim2.new(1, 0, 0, 25); ItemBtn.BackgroundColor3 = Theme.Main
-        ItemBtn.Text = " " .. displayName; ItemBtn.TextColor3 = Theme.Text
-        ItemBtn.Font = Enum.Font.Gotham; ItemBtn.TextSize = 11; Instance.new("UICorner", ItemBtn)
-        ItemBtn.TextXAlignment = Enum.TextXAlignment.Left; ItemBtn.ZIndex = 11
+        ItemBtn.Size = UDim2.new(1, 0, 0, 25); ItemBtn.BackgroundTransparency = 1
+        ItemBtn.Text = displayName; ItemBtn.TextColor3 = Theme.SubText
+        ItemBtn.Font = Enum.Font.Gotham; ItemBtn.TextSize = 11; ItemBtn.ZIndex = 101
         
         ItemBtn.MouseButton1Click:Connect(function()
             _G.Farm_SlotIndex = slotIndex 
-            DropBtn.Text = "Slot: " .. tostring(slotIndex)
+            DropBtn.Text = displayName
             
-            -- [!] FITUR SINKRONISASI: Mengubah angka di kotak Manual secara otomatis
-            if SlotInputBox then
-                SlotInputBox.Text = tostring(slotIndex)
-            end
-            
+            if SlotInputBox then SlotInputBox.Text = tostring(slotIndex) end
             DropList.Visible = false
         end)
     end
-    DropList.CanvasSize = UDim2.new(0, 0, 0, DropLayout.AbsoluteContentSize.Y + 5)
+    DropList.CanvasSize = UDim2.new(0, 0, 0, DropLayout.AbsoluteContentSize.Y + 10)
 end
 
 DropBtn.MouseButton1Click:Connect(function() 
@@ -139,24 +143,29 @@ DropBtn.MouseButton1Click:Connect(function()
 end)
 RefreshDropdown()
 
--- [[ 2 & 3. SETTINGS: MANUAL INPUT & DELAY ]] --
+-- [[ 2 & 3. SETTINGS: MANUAL INPUT & DELAY (ZONHUB STYLE) ]] --
 local function CreateSetting(label, defaultVal, globalVar)
     local Frame = Instance.new("Frame", Page)
-    Frame.Size = UDim2.new(1, -10, 0, 30); Frame.BackgroundTransparency = 1
+    Frame.Size = UDim2.new(1, -10, 0, 35)
+    Frame.BackgroundColor3 = Theme.Item -- Background baris abu-abu
+    Instance.new("UICorner", Frame).CornerRadius = UDim.new(0, 6)
+    Frame.ZIndex = 1 -- ZIndex rendah agar dropdown bisa melayang di atasnya
     
     local Lbl = Instance.new("TextLabel", Frame)
-    Lbl.Size = UDim2.new(0.6, 0, 1, 0); Lbl.Text = label; Lbl.TextColor3 = Theme.Text; Lbl.Font = Enum.Font.Gotham; Lbl.TextSize = 12; Lbl.BackgroundTransparency = 1; Lbl.TextXAlignment = Enum.TextXAlignment.Left
+    Lbl.Size = UDim2.new(0.5, 0, 1, 0); Lbl.Position = UDim2.new(0, 10, 0, 0)
+    Lbl.Text = label; Lbl.TextColor3 = Theme.Text; Lbl.Font = Enum.Font.Gotham; Lbl.TextSize = 12
+    Lbl.BackgroundTransparency = 1; Lbl.TextXAlignment = Enum.TextXAlignment.Left
     
     local Box = Instance.new("TextBox", Frame)
-    Box.Size = UDim2.new(0.35, 0, 0.8, 0); Box.Position = UDim2.new(0.65, 0, 0.1, 0)
-    Box.BackgroundColor3 = Theme.Item; Box.TextColor3 = Theme.Accent; Box.Font = Enum.Font.GothamBold; Box.TextSize = 12; Box.Text = tostring(defaultVal); Instance.new("UICorner", Box)
+    Box.Size = UDim2.new(0.45, -10, 0.8, 0); Box.Position = UDim2.new(0.55, 0, 0.1, 0)
+    Box.BackgroundColor3 = Theme.Main; Box.TextColor3 = Theme.Accent
+    Box.Font = Enum.Font.GothamBold; Box.TextSize = 12; Box.Text = tostring(defaultVal); Box.ZIndex = 1
+    Instance.new("UICorner", Box).CornerRadius = UDim.new(0, 6)
     
     Box.FocusLost:Connect(function() _G[globalVar] = tonumber(Box.Text) or defaultVal end)
-    
-    return Box -- Kembalikan nilai Box agar bisa di-sinkronisasi dari luar
+    return Box 
 end
 
--- Simpan Box Manual Slot ke dalam variabel SlotInputBox
 SlotInputBox = CreateSetting("Manual Slot Tas (Xeno):", _G.Farm_SlotIndex, "Farm_SlotIndex") 
 CreateSetting("Place Delay (Detik):", _G.Farm_PlaceDelay, "Farm_PlaceDelay")
 CreateSetting("Hit Delay (Detik):", _G.Farm_HitDelay, "Farm_HitDelay")
@@ -164,7 +173,8 @@ CreateSetting("Hit Count (Pukulan):", _G.Farm_HitCount, "Farm_HitCount")
 
 -- [[ 4. SELECT FARM TILES (GRID SELECTOR) ]] --
 local GridBox = Instance.new("Frame", Page)
-GridBox.Size = UDim2.new(1, -10, 0, 180); GridBox.BackgroundColor3 = Theme.Item; Instance.new("UICorner", GridBox)
+GridBox.Size = UDim2.new(1, -10, 0, 180); GridBox.BackgroundColor3 = Theme.Item; Instance.new("UICorner", GridBox).CornerRadius = UDim.new(0, 6)
+GridBox.ZIndex = 1
 local GInner = Instance.new("Frame", GridBox)
 GInner.Size = UDim2.new(0, 160, 0, 160); GInner.Position = UDim2.new(0.5, -80, 0.5, -80); GInner.BackgroundTransparency = 1
 local GLat = Instance.new("UIGridLayout", GInner); GLat.CellSize = UDim2.new(0, 28, 0, 28); GLat.CellPadding = UDim2.new(0, 4, 0, 4)
@@ -201,31 +211,21 @@ task.spawn(function()
         if _G.Farm_Active and #_G.Farm_Targets > 0 then
             local cp = GetCurrentGrid()
             
-            -- PHASE 1: FORCE PLACE
             for _, o in ipairs(_G.Farm_Targets) do
                 if not _G.Farm_Active then break end
                 local tx, ty = math.floor(cp.X + o.X), math.floor(cp.Y + o.Y)
-                
-                if _G.Farm_SlotIndex ~= nil then 
-                    pcall(function() 
-                        PlaceRemote:FireServer(Vector2.new(tx, ty), _G.Farm_SlotIndex) 
-                    end)
-                end
+                if _G.Farm_SlotIndex ~= nil then pcall(function() PlaceRemote:FireServer(Vector2.new(tx, ty), _G.Farm_SlotIndex) end) end
                 task.wait(_G.Farm_PlaceDelay)
             end
             
             task.wait(0.4) 
             
-            -- PHASE 2: FORCE BREAK
             for i = 1, _G.Farm_HitCount do
                 if not _G.Farm_Active then break end
                 for _, o in ipairs(_G.Farm_Targets) do
                     if not _G.Farm_Active then break end
                     local tx, ty = math.floor(cp.X + o.X), math.floor(cp.Y + o.Y)
-                    
-                    pcall(function() 
-                        FistRemote:FireServer(Vector2.new(tx, ty)) 
-                    end)
+                    pcall(function() FistRemote:FireServer(Vector2.new(tx, ty)) end)
                     task.wait(_G.Farm_HitDelay)
                 end
             end
