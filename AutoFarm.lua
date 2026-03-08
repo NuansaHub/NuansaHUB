@@ -207,19 +207,6 @@ local function GetCurrentGrid()
     return Root and Vector2.new(math.floor(Root.Position.X / 4.5 + 0.5), math.floor(Root.Position.Y / 4.5 + 0.5)) or Vector2.new(0,0)
 end
 
--- [FITUR BARU] Fungsi untuk memalsukan langkah kecil agar tidak terdeteksi teleport
-local function SmoothMove(remote, startPos, endPos)
-    local dist = (endPos - startPos).Magnitude
-    local steps = math.ceil(dist / 1.5) -- Membagi jarak jadi beberapa langkah kecil
-    if steps < 1 then steps = 1 end
-    
-    for i = 1, steps do
-        local currentPos = startPos:Lerp(endPos, i / steps)
-        pcall(function() remote:FireServer(currentPos) end)
-        task.wait(0.04) -- Jeda menyesuaikan kecepatan server (20 Tick per detik)
-    end
-end
-
 -- Fungsi Pintar untuk Mengambil Barang (Pola Bintang Anti-Nyangkut)
 local function StealthCollectDrops()
     local Drops = workspace:FindFirstChild("Drops")
