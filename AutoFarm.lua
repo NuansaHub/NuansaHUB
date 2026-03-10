@@ -263,19 +263,25 @@ task.spawn(function()
     while true do
         if _G.Farm_Active and #_G.Farm_Targets > 0 then
             
+            -- [!] KUNCI FIX: SISTEM TARGET LOCK (KUNCI KOORDINAT)
+            -- Bot hanya mengambil koordinat SATU KALI saat farm nyala.
+            if not _G.LockedGrid then
+                _G.LockedGrid = GetCurrentGrid()
+            end
+            
             if _G.AutoCollect then StealthCollectDrops() end
             
-            local cp = GetCurrentGrid()
+            -- Bot SEPENUHNYA mengabaikan pergerakan karakter yang ditarik server
+            local cp = _G.LockedGrid
             
-            -- Cek dan pindah slot secara cerdas sebelum menanam (Jalan di Delta/Mobile)
-            CheckAndSwitchSlot()
+            -- Cek dan pindah slot secara cerdas (kalau ada)
+            if CheckAndSwitchSlot then CheckAndSwitchSlot() end
             
             -- PHASE 1: FORCE PLACE
             for _, o in ipairs(_G.Farm_Targets) do
                 if not _G.Farm_Active then break end
                 local tx, ty = math.floor(cp.X + o.X), math.floor(cp.Y + o.Y)
                 
-                -- Sistem Multi-Slot Brute Force (Jalan di Xeno/PC)
                 local slotsToUse = {}
                 for s in string.gmatch(tostring(_G.Farm_SlotIndex), "%d+") do
                     table.insert(slotsToUse, tonumber(s))
@@ -303,6 +309,9 @@ task.spawn(function()
             end
             
             if _G.AutoCollect then StealthCollectDrops() end
+        else
+            -- [!] Hapus kunci koordinat jika Auto Farm dimatikan
+            _G.LockedGrid = nil
         end
         task.wait(0.1)
     end
