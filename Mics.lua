@@ -130,32 +130,40 @@ SensorBtn.MouseButton1Click:Connect(function()
 end)
 
 -- ==========================================
--- [[ 3. ENGINE SENSOR NAMA GLOBAL (ALL PLAYERS) ]]
+-- [[ 3. ENGINE SENSOR NAMA (ANTI-OVERWRITE) ]]
 -- ==========================================
 task.spawn(function()
     while true do
         if _G.Misc_HideName then
             pcall(function()
-                -- Loop ke SEMUA pemain yang ada di server
-                for _, p in pairs(Players:GetPlayers()) do
+                -- Scan semua player termasuk diri sendiri
+                for _, p in pairs(game:GetService("Players"):GetPlayers()) do
                     local Char = p.Character
                     if Char and Char:FindFirstChild("HumanoidRootPart") then
                         local NameTag = Char.HumanoidRootPart:FindFirstChild("NameTagUI")
                         
                         if NameTag then
-                            -- Cari semua teks di dalam NameTagUI pemain tersebut
                             for _, objek in pairs(NameTag:GetDescendants()) do
-                                if objek:IsA("TextLabel") or objek:IsA("TextButton") then
+                                if objek:IsA("TextLabel") then
                                     
-                                    -- Jangan ganggu icon/bendera
-                                    if objek.Parent and not string.match(objek.Parent.Name, "Icon") then
-                                        
-                                        -- Ganti jadi nama palsu jika belum terganti
-                                        if objek.Text ~= _G.Misc_FakeName then
-                                            objek.Text = _G.Misc_FakeName
-                                        end
-                                        
+                                    -- 1. Paksa teks jadi nama palsu
+                                    if objek.Text ~= _G.Misc_FakeName then
+                                        objek.Text = _G.Misc_FakeName
                                     end
+                                    
+                                    -- 2. Kunci Properti (Agar script game tidak bisa menimpa)
+                                    -- Kita buat teksnya tidak bisa diubah oleh script luar
+                                    if objek:GetAttribute("LockedByAlpha") ~= true then
+                                        objek:SetAttribute("LockedByAlpha", true)
+                                        
+                                        -- Jika script game mencoba ganti teks, kita ganti balik instan
+                                        objek:GetPropertyChangedSignal("Text"):Connect(function()
+                                            if _G.Misc_HideName and objek.Text ~= _G.Misc_FakeName then
+                                                objek.Text = _G.Misc_FakeName
+                                            end
+                                        end)
+                                    end
+                                    
                                 end
                             end
                         end
@@ -163,6 +171,6 @@ task.spawn(function()
                 end
             end)
         end
-        task.wait(0.5) -- Sedikit lebih lambat agar tidak berat karena scan banyak orang
+        task.wait(0.3) -- Scan rutin setiap 0.3 detik
     end
 end)
