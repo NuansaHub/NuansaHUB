@@ -194,11 +194,24 @@ local DropLayout = Instance.new("UIListLayout", DropList); DropLayout.Horizontal
 
 local function RefreshDropdown()
     for _, child in pairs(DropList:GetChildren()) do if child:IsA("TextButton") then child:Destroy() end end
+    
+    -- [FITUR BARU] Tombol Auto Equip Paling Atas
+    local AutoBtn = Instance.new("TextButton", DropList)
+    AutoBtn.Size = UDim2.new(1, 0, 0, 25); AutoBtn.BackgroundTransparency = 1
+    AutoBtn.Text = "⚡ AUTO EQUIP (HOTBAR)"; AutoBtn.TextColor3 = Theme.Accent; AutoBtn.Font = Enum.Font.GothamBold; AutoBtn.TextSize = 11; AutoBtn.ZIndex = 101
+    AutoBtn.MouseButton1Click:Connect(function()
+        _G.AutoEquipMode = true
+        DropBtn.Text = "⚡ AUTO EQUIP"
+        DropList.Visible = false
+    end)
+
+    -- Daftar Barang Asli
     for displayName, itemData in pairs(GetInventoryItems()) do
         local ItemBtn = Instance.new("TextButton", DropList)
         ItemBtn.Size = UDim2.new(1, 0, 0, 25); ItemBtn.BackgroundTransparency = 1; ItemBtn.Text = displayName; ItemBtn.TextColor3 = Theme.SubText; ItemBtn.Font = Enum.Font.Gotham; ItemBtn.TextSize = 11; ItemBtn.ZIndex = 101
+        
         ItemBtn.MouseButton1Click:Connect(function()
-            -- [!] Pindahkan Slot dan ID ke memori otak Bot
+            _G.AutoEquipMode = false -- Matikan mode Auto Equip jika pilih manual
             _G.Farm_SlotIndex = itemData.Slot 
             _G.Farm_ItemID = itemData.ID
             DropBtn.Text = displayName
@@ -210,6 +223,44 @@ local function RefreshDropdown()
 end
 DropBtn.MouseButton1Click:Connect(function() if not DropList.Visible then RefreshDropdown() end DropList.Visible = not DropList.Visible end)
 RefreshDropdown()
+
+-- [[ 1.5. SISTEM HOTBAR AUTO EQUIP ]] --
+local UIS = game:GetService("UserInputService")
+_G.AutoEquipMode = false
+
+UIS.InputBegan:Connect(function(input, gameProcessed)
+    -- Abaikan kalau kamu sedang mengetik di kolom chat game
+    if gameProcessed then return end 
+    
+    -- Hanya berjalan JIKA kamu memilih "Auto Equip" di Dropdown
+    if _G.AutoEquipMode then
+        local hotbarNum = nil
+        
+        -- Deteksi tombol 2, 3, dan 4 (Tombol 1 diabaikan karena Fist)
+        if input.KeyCode == Enum.KeyCode.Two then hotbarNum = 2
+        elseif input.KeyCode == Enum.KeyCode.Three then hotbarNum = 3
+        elseif input.KeyCode == Enum.KeyCode.Four then hotbarNum = 4
+        end
+        
+        -- Jika tombol 2, 3, atau 4 dipencet...
+        if hotbarNum then
+            _G.Farm_SlotIndex = hotbarNum
+            if SlotInputBox then SlotInputBox.Text = tostring(hotbarNum) end
+            
+            -- [KECERDASAN BUATAN]: Cek tas, cari tahu barang apa yang ada di hotbar itu!
+            -- Ini supaya sistem Auto-Switch (Habis 200 blok ganti slot) TETAP JALAN.
+            pcall(function()
+                local Inv = require(RS.Modules.Inventory)
+                local data = Inv.Stacks[hotbarNum]
+                if type(data) == "table" and data.Id then
+                    _G.Farm_ItemID = data.Id
+                else
+                    _G.Farm_ItemID = nil
+                end
+            end)
+        end
+    end
+end)
 
 -- [[ 2. SETTINGS MANUAL ]] --
 local function CreateSetting(label, defaultVal, globalVar)
