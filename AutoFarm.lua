@@ -27,6 +27,7 @@ _G.Farm_PlaceDelay = 0.15
 _G.Farm_HitDelay = 0.15   
 _G.Farm_HitCount = 3      
 _G.Farm_SlotIndex = 1     
+_G.Farm_ItemID = nil -- Mengingat ID barang yang dipilih
 _G.Farm_Targets = {}
 
 local Theme = {
@@ -153,7 +154,7 @@ SaveBtn.MouseButton1Click:Connect(function()
     end
 end)
 
--- [[ 1. SISTEM INVENTORY & DROPDOWN (BUG FIX) ]] --
+-- [[ 1. SISTEM INVENTORY & DROPDOWN (AUTO-SWITCH READY) ]] --
 local function GetInventoryItems()
     local items = {}
     pcall(function()
@@ -163,27 +164,21 @@ local function GetInventoryItems()
         for slotIndex, itemData in pairs(InventoryModule.Stacks) do
             if type(itemData) == "table" and itemData.Id then
                 local itemStringID = itemData.Id 
-                
-                -- [!] KUNCI FIX: Mengambil data dari Tabel (ItemsData), BUKAN memanggil fungsi!
                 local dataInfo = ItemsManager.ItemsData and ItemsManager.ItemsData[itemStringID]
                 local realName = (dataInfo and dataInfo.Name) and dataInfo.Name or itemStringID
                 
-                -- Fix format Sapling
                 if type(itemStringID) == "string" and string.sub(itemStringID, -8) == "_sapling" then
-                    if not string.match(string.lower(realName), "sapling") then
-                        realName = realName .. " Sapling"
-                    end
+                    if not string.match(string.lower(realName), "sapling") then realName = realName .. " Sapling" end
                 end
                 
                 local displayName = realName .. " [" .. tostring(slotIndex) .. "]"
-                if not items[displayName] then items[displayName] = slotIndex end
+                -- [!] Simpan Nomor Slot DAN ID Barang-nya
+                if not items[displayName] then items[displayName] = {Slot = slotIndex, ID = itemStringID} end
             end
         end
     end)
     
-    -- Fallback anti-error jika tas benar-benar kosong atau belum memuat
-    if next(items) == nil then items["Tas Kosong / Loading"] = 1 end
-    
+    if next(items) == nil then items["Tas Kosong / Loading"] = {Slot = 1, ID = nil} end
     return items
 end
 
@@ -199,13 +194,15 @@ local DropLayout = Instance.new("UIListLayout", DropList); DropLayout.Horizontal
 
 local function RefreshDropdown()
     for _, child in pairs(DropList:GetChildren()) do if child:IsA("TextButton") then child:Destroy() end end
-    for displayName, slotIndex in pairs(GetInventoryItems()) do
+    for displayName, itemData in pairs(GetInventoryItems()) do
         local ItemBtn = Instance.new("TextButton", DropList)
         ItemBtn.Size = UDim2.new(1, 0, 0, 25); ItemBtn.BackgroundTransparency = 1; ItemBtn.Text = displayName; ItemBtn.TextColor3 = Theme.SubText; ItemBtn.Font = Enum.Font.Gotham; ItemBtn.TextSize = 11; ItemBtn.ZIndex = 101
         ItemBtn.MouseButton1Click:Connect(function()
-            _G.Farm_SlotIndex = slotIndex 
+            -- [!] Pindahkan Slot dan ID ke memori otak Bot
+            _G.Farm_SlotIndex = itemData.Slot 
+            _G.Farm_ItemID = itemData.ID
             DropBtn.Text = displayName
-            if SlotInputBox then SlotInputBox.Text = tostring(slotIndex) end
+            if SlotInputBox then SlotInputBox.Text = tostring(itemData.Slot) end
             DropList.Visible = false
         end)
     end
@@ -375,6 +372,32 @@ local function StealthCollectDrops()
     end
 end
 
+-- [[ MESIN AUTO-SWITCH STACK ]] --
+local function CheckAndSwitchSlot()
+    if not _G.Farm_ItemID then return end
+    local currentSlotNum = tonumber(_G.Farm_SlotIndex)
+    if not currentSlotNum then return end
+
+    pcall(function()
+        local Inv = require(RS.Modules.Inventory)
+        
+        -- Cek slot yang dipakai sekarang
+        local currentData = Inv.Stacks[currentSlotNum]
+        if currentData and currentData.Id == _G.Farm_ItemID and (currentData.Amount and currentData.Amount > 0) then
+            return -- Aman, blok masih ada!
+        end
+        
+        -- Kalau HABIS, scan seluruh tas mencari barang yang ID-nya sama!
+        for slotIndex, data in pairs(Inv.Stacks) do
+            if type(data) == "table" and data.Id == _G.Farm_ItemID and (data.Amount and data.Amount > 0) then
+                _G.Farm_SlotIndex = slotIndex
+                if SlotInputBox then SlotInputBox.Text = tostring(slotIndex) end
+                break
+            end
+        end
+    end)
+end
+
 -- LOOP UTAMA AUTO FARM
 task.spawn(function()
     while true do
@@ -387,9 +410,11 @@ task.spawn(function()
             if _G.SavedPos3D then
                 cp = Vector2.new(math.floor(_G.SavedPos3D.X / 4.5 + 0.5), math.floor(_G.SavedPos3D.Y / 4.5 + 0.5))
             else
-                -- Fallback kalau lupa nge-save
                 cp = GetCurrentGrid()
             end
+            
+            -- PANGGIL OTAK AUTO-SWITCH DI SINI SEBELUM MENANAM
+            CheckAndSwitchSlot()
             
             for _, o in ipairs(_G.Farm_Targets) do
                 if not _G.Farm_Active then break end
