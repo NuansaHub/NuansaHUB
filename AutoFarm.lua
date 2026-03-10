@@ -180,8 +180,7 @@ for y = 2, -2, -1 do
     end
 end
 
--- [[ ENGINE GOD MODE: AUTO COLLECT & AUTO FARM ]] --
-local function StealthCollectDrops()
+--local function StealthCollectDrops()
     local Drops = workspace:FindFirstChild("Drops")
     if not Drops or #Drops:GetChildren() == 0 then return end
 
@@ -190,37 +189,38 @@ local function StealthCollectDrops()
     if not MyRemote then return end
 
     local MyHitbox = workspace:FindFirstChild("Hitbox") and workspace.Hitbox:FindFirstChild(LP.Name)
-    local PosisiAsli = MyHitbox and Vector2.new(MyHitbox.Position.X, MyHitbox.Position.Y) or Vector2.new(0,0)
+    if not MyHitbox then return end
+    
+    local PosisiAsli2D = Vector2.new(MyHitbox.Position.X, MyHitbox.Position.Y)
+    local PosisiAsli3D = MyHitbox.Position
     
     local hasCollected = false
 
     for _, item in ipairs(Drops:GetChildren()) do
         if not _G.Farm_Active or not _G.AutoCollect then break end
         
-        local targetPart = nil
-        if item:IsA("Model") then targetPart = item.PrimaryPart or item:FindFirstChildWhichIsA("BasePart")
-        elseif item:IsA("BasePart") then targetPart = item
-        else targetPart = item:FindFirstChildWhichIsA("BasePart") end
+        local targetPart = item:IsA("Model") and (item.PrimaryPart or item:FindFirstChildWhichIsA("BasePart")) or (item:IsA("BasePart") and item or item:FindFirstChildWhichIsA("BasePart"))
         
         if targetPart then
             hasCollected = true
-            local posBarang = targetPart.Position
-            local KoordinatPalsu = Vector2.new(posBarang.X, posBarang.Y)
+            -- FIX LUBANG: Kirim koordinat sedikit di atas barang (+3) agar tidak nabrak lantai
+            local fakeX = targetPart.Position.X
+            local fakeY = targetPart.Position.Y + 3 
             
-            pcall(function() MyRemote:FireServer(KoordinatPalsu) end)
+            MyHitbox.Position = Vector3.new(fakeX, fakeY, PosisiAsli3D.Z)
+            pcall(function() MyRemote:FireServer(Vector2.new(fakeX, fakeY)) end)
             
-            if MyHitbox and firetouchinterest then
-                pcall(function()
-                    firetouchinterest(MyHitbox, targetPart, 0)
-                    firetouchinterest(MyHitbox, targetPart, 1)
-                end)
+            if firetouchinterest then
+                firetouchinterest(MyHitbox, targetPart, 0)
+                firetouchinterest(MyHitbox, targetPart, 1)
             end
-            task.wait(0.15) 
+            task.wait(0.12) -- Sedikit lebih cepat
         end
     end
     
     if hasCollected then
-        pcall(function() MyRemote:FireServer(PosisiAsli) end)
+        MyHitbox.Position = PosisiAsli3D
+        pcall(function() MyRemote:FireServer(PosisiAsli2D) end)
         task.wait(0.1)
     end
 end
