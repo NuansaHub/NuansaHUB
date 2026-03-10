@@ -306,7 +306,7 @@ end
 -- SETUP TAB
 local Tab1 = AddTab("Home")
 local Tab2 = AddTab("Auto Farm")
-local tab3 = AddTab("Misc")
+local Tab3 = AddTab("Misc")
 
 AddModule(Tab2, "Autofarm Menu", "Update Terbaru.", "https://raw.githubusercontent.com/NuansaHub/NuansaHUB/refs/heads/main/AutoFarm.lua")
 AddModule(Tab3, "Misc", "Misc Menu", "https://raw.githubusercontent.com/NuansaHub/NuansaHUB/refs/heads/main/Mics.lua")
