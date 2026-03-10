@@ -27,7 +27,6 @@ _G.Farm_PlaceDelay = 0.15
 _G.Farm_HitDelay = 0.15   
 _G.Farm_HitCount = 3      
 _G.Farm_SlotIndex = 1     
-_G.Farm_ItemID = nil -- Mengingat ID barang yang dipilih
 _G.Farm_Targets = {}
 
 local Theme = {
@@ -154,7 +153,7 @@ SaveBtn.MouseButton1Click:Connect(function()
     end
 end)
 
--- [[ 1. SISTEM INVENTORY & DROPDOWN (AUTO-SWITCH READY) ]] --
+-- [[ 1. SISTEM INVENTORY & DROPDOWN (BUG FIX) ]] --
 local function GetInventoryItems()
     local items = {}
     pcall(function()
@@ -164,21 +163,27 @@ local function GetInventoryItems()
         for slotIndex, itemData in pairs(InventoryModule.Stacks) do
             if type(itemData) == "table" and itemData.Id then
                 local itemStringID = itemData.Id 
+                
+                -- [!] KUNCI FIX: Mengambil data dari Tabel (ItemsData), BUKAN memanggil fungsi!
                 local dataInfo = ItemsManager.ItemsData and ItemsManager.ItemsData[itemStringID]
                 local realName = (dataInfo and dataInfo.Name) and dataInfo.Name or itemStringID
                 
+                -- Fix format Sapling
                 if type(itemStringID) == "string" and string.sub(itemStringID, -8) == "_sapling" then
-                    if not string.match(string.lower(realName), "sapling") then realName = realName .. " Sapling" end
+                    if not string.match(string.lower(realName), "sapling") then
+                        realName = realName .. " Sapling"
+                    end
                 end
                 
                 local displayName = realName .. " [" .. tostring(slotIndex) .. "]"
-                -- [!] Simpan Nomor Slot DAN ID Barang-nya
-                if not items[displayName] then items[displayName] = {Slot = slotIndex, ID = itemStringID} end
+                if not items[displayName] then items[displayName] = slotIndex end
             end
         end
     end)
     
-    if next(items) == nil then items["Tas Kosong / Loading"] = {Slot = 1, ID = nil} end
+    -- Fallback anti-error jika tas benar-benar kosong atau belum memuat
+    if next(items) == nil then items["Tas Kosong / Loading"] = 1 end
+    
     return items
 end
 
@@ -194,28 +199,13 @@ local DropLayout = Instance.new("UIListLayout", DropList); DropLayout.Horizontal
 
 local function RefreshDropdown()
     for _, child in pairs(DropList:GetChildren()) do if child:IsA("TextButton") then child:Destroy() end end
-    
-    -- [FITUR BARU] Tombol Auto Equip Paling Atas
-    local AutoBtn = Instance.new("TextButton", DropList)
-    AutoBtn.Size = UDim2.new(1, 0, 0, 25); AutoBtn.BackgroundTransparency = 1
-    AutoBtn.Text = "⚡ AUTO EQUIP (HOTBAR)"; AutoBtn.TextColor3 = Theme.Accent; AutoBtn.Font = Enum.Font.GothamBold; AutoBtn.TextSize = 11; AutoBtn.ZIndex = 101
-    AutoBtn.MouseButton1Click:Connect(function()
-        _G.AutoEquipMode = true
-        DropBtn.Text = "⚡ AUTO EQUIP"
-        DropList.Visible = false
-    end)
-
-    -- Daftar Barang Asli
-    for displayName, itemData in pairs(GetInventoryItems()) do
+    for displayName, slotIndex in pairs(GetInventoryItems()) do
         local ItemBtn = Instance.new("TextButton", DropList)
         ItemBtn.Size = UDim2.new(1, 0, 0, 25); ItemBtn.BackgroundTransparency = 1; ItemBtn.Text = displayName; ItemBtn.TextColor3 = Theme.SubText; ItemBtn.Font = Enum.Font.Gotham; ItemBtn.TextSize = 11; ItemBtn.ZIndex = 101
-        
         ItemBtn.MouseButton1Click:Connect(function()
-            _G.AutoEquipMode = false -- Matikan mode Auto Equip jika pilih manual
-            _G.Farm_SlotIndex = itemData.Slot 
-            _G.Farm_ItemID = itemData.ID
+            _G.Farm_SlotIndex = slotIndex 
             DropBtn.Text = displayName
-            if SlotInputBox then SlotInputBox.Text = tostring(itemData.Slot) end
+            if SlotInputBox then SlotInputBox.Text = tostring(slotIndex) end
             DropList.Visible = false
         end)
     end
@@ -223,44 +213,6 @@ local function RefreshDropdown()
 end
 DropBtn.MouseButton1Click:Connect(function() if not DropList.Visible then RefreshDropdown() end DropList.Visible = not DropList.Visible end)
 RefreshDropdown()
-
--- [[ 1.5. SISTEM HOTBAR AUTO EQUIP ]] --
-local UIS = game:GetService("UserInputService")
-_G.AutoEquipMode = false
-
-UIS.InputBegan:Connect(function(input, gameProcessed)
-    -- Abaikan kalau kamu sedang mengetik di kolom chat game
-    if gameProcessed then return end 
-    
-    -- Hanya berjalan JIKA kamu memilih "Auto Equip" di Dropdown
-    if _G.AutoEquipMode then
-        local hotbarNum = nil
-        
-        -- Deteksi tombol 2, 3, dan 4 (Tombol 1 diabaikan karena Fist)
-        if input.KeyCode == Enum.KeyCode.Two then hotbarNum = 2
-        elseif input.KeyCode == Enum.KeyCode.Three then hotbarNum = 3
-        elseif input.KeyCode == Enum.KeyCode.Four then hotbarNum = 4
-        end
-        
-        -- Jika tombol 2, 3, atau 4 dipencet...
-        if hotbarNum then
-            _G.Farm_SlotIndex = hotbarNum
-            if SlotInputBox then SlotInputBox.Text = tostring(hotbarNum) end
-            
-            -- [KECERDASAN BUATAN]: Cek tas, cari tahu barang apa yang ada di hotbar itu!
-            -- Ini supaya sistem Auto-Switch (Habis 200 blok ganti slot) TETAP JALAN.
-            pcall(function()
-                local Inv = require(RS.Modules.Inventory)
-                local data = Inv.Stacks[hotbarNum]
-                if type(data) == "table" and data.Id then
-                    _G.Farm_ItemID = data.Id
-                else
-                    _G.Farm_ItemID = nil
-                end
-            end)
-        end
-    end
-end)
 
 -- [[ 2. SETTINGS MANUAL ]] --
 local function CreateSetting(label, defaultVal, globalVar)
@@ -405,7 +357,7 @@ local function StealthCollectDrops()
                         firetouchinterest(MyHitbox, targetPart, 1)
                     end)
                 end
-                task.wait(0.01) -- Biarkan barang masuk tas
+                task.wait(0.05) -- Biarkan barang masuk tas
                 
                 -- Update posisi roh bot sekarang berada di titik barang tersebut
                 currentPos = itemPos2D
@@ -423,32 +375,6 @@ local function StealthCollectDrops()
     end
 end
 
--- [[ MESIN AUTO-SWITCH STACK ]] --
-local function CheckAndSwitchSlot()
-    if not _G.Farm_ItemID then return end
-    local currentSlotNum = tonumber(_G.Farm_SlotIndex)
-    if not currentSlotNum then return end
-
-    pcall(function()
-        local Inv = require(RS.Modules.Inventory)
-        
-        -- Cek slot yang dipakai sekarang
-        local currentData = Inv.Stacks[currentSlotNum]
-        if currentData and currentData.Id == _G.Farm_ItemID and (currentData.Amount and currentData.Amount > 0) then
-            return -- Aman, blok masih ada!
-        end
-        
-        -- Kalau HABIS, scan seluruh tas mencari barang yang ID-nya sama!
-        for slotIndex, data in pairs(Inv.Stacks) do
-            if type(data) == "table" and data.Id == _G.Farm_ItemID and (data.Amount and data.Amount > 0) then
-                _G.Farm_SlotIndex = slotIndex
-                if SlotInputBox then SlotInputBox.Text = tostring(slotIndex) end
-                break
-            end
-        end
-    end)
-end
-
 -- LOOP UTAMA AUTO FARM
 task.spawn(function()
     while true do
@@ -461,11 +387,9 @@ task.spawn(function()
             if _G.SavedPos3D then
                 cp = Vector2.new(math.floor(_G.SavedPos3D.X / 4.5 + 0.5), math.floor(_G.SavedPos3D.Y / 4.5 + 0.5))
             else
+                -- Fallback kalau lupa nge-save
                 cp = GetCurrentGrid()
             end
-            
-            -- PANGGIL OTAK AUTO-SWITCH DI SINI SEBELUM MENANAM
-            CheckAndSwitchSlot()
             
             for _, o in ipairs(_G.Farm_Targets) do
                 if not _G.Farm_Active then break end
