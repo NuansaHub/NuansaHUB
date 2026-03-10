@@ -1,4 +1,4 @@
--- [[ ALPHA PROJECT - GOD MODE AUTO FARM & COLLECT (ULTIMATE VERSION) ]] --
+-- [[ ALPHA PROJECT - GOD MODE AUTO FARM & COLLECT (ULTIMATE LOCKED) ]] --
 
 local CoreGui = game:GetService("CoreGui")
 local Players = game:GetService("Players")
@@ -29,6 +29,11 @@ _G.Farm_HitCount = 3
 _G.Farm_SlotIndex = "1"
 _G.Farm_ItemID = nil 
 _G.Farm_Targets = {}
+
+-- Variabel untuk mengunci posisi
+_G.Farm_Center3D = nil
+_G.Farm_Center2D = nil
+_G.Farm_CenterGrid = nil
 
 local Theme = {
     Main = Color3.fromRGB(15, 17, 20),    
@@ -61,6 +66,10 @@ StartBtn.MouseButton1Click:Connect(function()
         StartBtn.Text = "AUTO FARM : OFF"
         StartBtn.TextColor3 = Color3.fromRGB(255, 80, 80); StartStroke.Color = Color3.fromRGB(255, 80, 80)
         TS:Create(StartBtn, TweenInfo.new(0.3), {BackgroundColor3 = Theme.Main}):Play()
+        -- Hapus memori kunci saat dimatikan
+        _G.Farm_Center3D = nil
+        _G.Farm_Center2D = nil
+        _G.Farm_CenterGrid = nil
     end
 end)
 
@@ -78,9 +87,7 @@ local function GetInventoryItems()
                 local realName = (dataInfo and dataInfo.Name) and dataInfo.Name or itemID
                 
                 if type(itemID) == "string" and string.sub(itemID, -8) == "_sapling" then
-                    if not string.match(string.lower(realName), "sapling") then
-                        realName = realName .. " Sapling"
-                    end
+                    if not string.match(string.lower(realName), "sapling") then realName = realName .. " Sapling" end
                 end
                 
                 local displayName = realName .. " [" .. tostring(slotIndex) .. "]"
@@ -139,10 +146,38 @@ CreateSetting("Place Delay (Detik):", _G.Farm_PlaceDelay, "Farm_PlaceDelay")
 CreateSetting("Hit Delay (Detik):", _G.Farm_HitDelay, "Farm_HitDelay")
 CreateSetting("Hit Count (Pukulan):", _G.Farm_HitCount, "Farm_HitCount")
 
+-- [[ 2.5 TOMBOL SAVE POSISI ]] --
+local PosFrame = Instance.new("Frame", Page)
+PosFrame.Size = UDim2.new(1, -10, 0, 35); PosFrame.BackgroundTransparency = 1; PosFrame.ZIndex = 1
+
+local PosBtn = Instance.new("TextButton", PosFrame)
+PosBtn.Size = UDim2.new(1, 0, 1, 0); PosBtn.BackgroundColor3 = Theme.Main; PosBtn.Text = "📌 KUNCI POSISI (SET HOME)"; PosBtn.TextColor3 = Theme.Accent
+PosBtn.Font = Enum.Font.GothamBold; PosBtn.TextSize = 12; Instance.new("UICorner", PosBtn).CornerRadius = UDim.new(0, 6)
+local PosStroke = Instance.new("UIStroke", PosBtn); PosStroke.Color = Theme.Accent; PosStroke.Thickness = 1
+
+PosBtn.MouseButton1Click:Connect(function()
+    local MyHitbox = workspace:FindFirstChild("Hitbox") and workspace.Hitbox:FindFirstChild(LP.Name)
+    local Char = LP.Character
+    local Root = Char and Char:FindFirstChild("HumanoidRootPart")
+    
+    if MyHitbox and Root then
+        -- Simpan koordinat ke memori global
+        _G.Farm_Center3D = MyHitbox.Position
+        _G.Farm_Center2D = Vector2.new(MyHitbox.Position.X, MyHitbox.Position.Y)
+        _G.Farm_CenterGrid = Vector2.new(math.floor(Root.Position.X / 4.5 + 0.5), math.floor(Root.Position.Y / 4.5 + 0.5))
+        
+        PosBtn.Text = "✅ TERKUNCI!"
+        PosBtn.TextColor3 = Color3.fromRGB(80, 255, 80); PosStroke.Color = Color3.fromRGB(80, 255, 80)
+        task.wait(1)
+        PosBtn.Text = "📌 KUNCI POSISI (SET HOME)"
+        PosBtn.TextColor3 = Theme.Accent; PosStroke.Color = Theme.Accent
+    end
+end)
+
 -- [[ 3. AUTO COLLECT TOGGLE ]] --
 local CollectFrame = Instance.new("Frame", Page)
 CollectFrame.Size = UDim2.new(1, -10, 0, 35); CollectFrame.BackgroundColor3 = Theme.Item; Instance.new("UICorner", CollectFrame).CornerRadius = UDim.new(0, 6); CollectFrame.ZIndex = 1
-local CollectLbl = Instance.new("TextLabel", CollectFrame); CollectLbl.Size = UDim2.new(0.6, 0, 1, 0); CollectLbl.Position = UDim2.new(0, 10, 0, 0); CollectLbl.Text = "Auto Collect (Aman)"; CollectLbl.TextColor3 = Theme.Text; CollectLbl.Font = Enum.Font.Gotham; CollectLbl.TextSize = 12; CollectLbl.BackgroundTransparency = 1; CollectLbl.TextXAlignment = Enum.TextXAlignment.Left
+local CollectLbl = Instance.new("TextLabel", CollectFrame); CollectLbl.Size = UDim2.new(0.6, 0, 1, 0); CollectLbl.Position = UDim2.new(0, 10, 0, 0); CollectLbl.Text = "Auto Collect (5x5 Grid)"; CollectLbl.TextColor3 = Theme.Text; CollectLbl.Font = Enum.Font.Gotham; CollectLbl.TextSize = 12; CollectLbl.BackgroundTransparency = 1; CollectLbl.TextXAlignment = Enum.TextXAlignment.Left
 local CollectBtn = Instance.new("TextButton", CollectFrame); CollectBtn.Size = UDim2.new(0, 50, 0, 22); CollectBtn.Position = UDim2.new(1, -60, 0.5, -11); CollectBtn.BackgroundColor3 = Theme.Main; CollectBtn.Text = "OFF"; CollectBtn.TextColor3 = Color3.fromRGB(255, 80, 80); CollectBtn.Font = Enum.Font.GothamBold; CollectBtn.TextSize = 10; Instance.new("UICorner", CollectBtn).CornerRadius = UDim.new(0, 4); local CollectStroke = Instance.new("UIStroke", CollectBtn); CollectStroke.Color = Color3.fromRGB(255, 80, 80); CollectStroke.Thickness = 1
 
 CollectBtn.MouseButton1Click:Connect(function()
@@ -205,7 +240,7 @@ local function CheckAndSwitchSlot()
     end)
 end
 
--- [[ ENGINE GOD MODE: AUTO COLLECT (5x5 GRID & SAVE POSITION) ]] --
+-- [[ ENGINE GOD MODE: AUTO COLLECT (KUNCI POSISI) ]] --
 local function StealthCollectDrops()
     local Drops = workspace:FindFirstChild("Drops")
     if not Drops or #Drops:GetChildren() == 0 then return end
@@ -217,12 +252,10 @@ local function StealthCollectDrops()
     local MyHitbox = workspace:FindFirstChild("Hitbox") and workspace.Hitbox:FindFirstChild(LP.Name)
     if not MyHitbox then return end
     
-    -- [1] SIMPAN POSISI ASAL (SAVE POSITION)
-    local PosisiAsli3D = MyHitbox.Position
-    local PosisiAsli2D = Vector2.new(PosisiAsli3D.X, PosisiAsli3D.Y)
-    local hasCollected = false
+    -- JIKA BELUM DIKUNCI, JANGAN MENGAMBIL BARANG!
+    if not _G.Farm_Center3D then return end
 
-    -- Had jarak 5 Grid (5 grid x 4.5 stud = 22.5 stud)
+    local hasCollected = false
     local MaxRadius = 22.5 
 
     for _, item in ipairs(Drops:GetChildren()) do
@@ -233,15 +266,13 @@ local function StealthCollectDrops()
         if targetPart then
             local itemPos = targetPart.Position
             
-            -- Kira perbezaan jarak item dari posisi asal
-            local diffX = math.abs(itemPos.X - PosisiAsli3D.X)
-            local diffY = math.abs(itemPos.Y - PosisiAsli3D.Y)
+            -- HITUNG JARAK DARI RUMAH UTAMA (Bukan dari posisi Hitbox saat ini!)
+            local diffX = math.abs(itemPos.X - _G.Farm_Center3D.X)
+            local diffY = math.abs(itemPos.Y - _G.Farm_Center3D.Y)
             
-            -- [2] KUTIP JIKA BERADA DALAM LINGKUNGAN 5x5 GRID
             if diffX <= MaxRadius and diffY <= MaxRadius then
                 hasCollected = true
                 
-                -- Bergerak ke lokasi item dan maklumkan kepada pelayan
                 MyHitbox.Position = itemPos
                 pcall(function() MyRemote:FireServer(Vector2.new(itemPos.X, itemPos.Y)) end)
                 
@@ -251,16 +282,16 @@ local function StealthCollectDrops()
                         firetouchinterest(MyHitbox, targetPart, 1)
                     end)
                 end
-                task.wait(0.15) -- Jeda pantas agar item sempat didaftarkan ke dalam beg
+                task.wait(0.15) 
             end
         end
     end
     
-    -- [3] KEMBALI KE POSISI ASAL SELEPAS MENGUTIP SEMUA ITEM
+    -- SELALU KEMBALI KE RUMAH UTAMA YANG SUDAH DIKUNCI
     if hasCollected then
-        MyHitbox.Position = PosisiAsli3D
-        pcall(function() MyRemote:FireServer(PosisiAsli2D) end)
-        task.wait(0.2) -- Masa menstabilkan kamera dan pelayan sebelum menyambung aktiviti "farm"
+        MyHitbox.Position = _G.Farm_Center3D
+        pcall(function() MyRemote:FireServer(_G.Farm_Center2D) end)
+        task.wait(0.2) 
     end
 end
 
@@ -274,18 +305,21 @@ task.spawn(function()
     while true do
         if _G.Farm_Active and #_G.Farm_Targets > 0 then
             
-            -- [!] KUNCI FIX: SISTEM TARGET LOCK (KUNCI KOORDINAT)
-            -- Bot hanya mengambil koordinat SATU KALI saat farm nyala.
-            if not _G.LockedGrid then
-                _G.LockedGrid = GetCurrentGrid()
+            -- Jika user lupa memencet tombol Kunci Posisi, otomatis kunci saat nyala!
+            if not _G.Farm_CenterGrid then
+                local Hitbox = workspace:FindFirstChild("Hitbox") and workspace.Hitbox:FindFirstChild(LP.Name)
+                if Hitbox then
+                    _G.Farm_Center3D = Hitbox.Position
+                    _G.Farm_Center2D = Vector2.new(Hitbox.Position.X, Hitbox.Position.Y)
+                    _G.Farm_CenterGrid = GetCurrentGrid()
+                end
             end
             
             if _G.AutoCollect then StealthCollectDrops() end
             
-            -- Bot SEPENUHNYA mengabaikan pergerakan karakter yang ditarik server
-            local cp = _G.LockedGrid
+            -- BOT SEKARANG 100% MENGGUNAKAN KOORDINAT YANG DIKUNCI
+            local cp = _G.Farm_CenterGrid
             
-            -- Cek dan pindah slot secara cerdas (kalau ada)
             if CheckAndSwitchSlot then CheckAndSwitchSlot() end
             
             -- PHASE 1: FORCE PLACE
@@ -320,9 +354,6 @@ task.spawn(function()
             end
             
             if _G.AutoCollect then StealthCollectDrops() end
-        else
-            -- [!] Hapus kunci koordinat jika Auto Farm dimatikan
-            _G.LockedGrid = nil
         end
         task.wait(0.1)
     end
