@@ -308,7 +308,7 @@ local Tab1 = AddTab("Home")
 local Tab2 = AddTab("Auto Farm")
 local tab3 = AddTab("Misc")
 
-AddModule(Tab3, "Welcome to NuansaHub", "Pilih tab di samping untuk melihat fitur yang tersedia.", "https://raw.githubusercontent.com/NuansaHub/NuansaHUB/refs/heads/main/Mics.lua")
-AddModule(Tab2, "Main Autofarm", "Update Terbaru.", "https://raw.githubusercontent.com/NuansaHub/NuansaHUB/refs/heads/main/AutoFarm.lua")
+AddModule(Tab2, "Autofarm Menu", "Update Terbaru.", "https://raw.githubusercontent.com/NuansaHub/NuansaHUB/refs/heads/main/AutoFarm.lua")
+AddModule(Tab3, "Misc", "Misc Menu", "https://raw.githubusercontent.com/NuansaHub/NuansaHUB/refs/heads/main/Mics.lua")
 
 if Tabs[1] then Pages[1].Visible = true; Tabs[1].BackgroundColor3 = Theme.Accent; Tabs[1].TextColor3 = Theme.Main; Tabs[1].UIStroke.Transparency = 0 end
