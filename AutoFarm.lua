@@ -1,4 +1,4 @@
--- [[ ALPHA PROJECT - GOD MODE AUTO FARM & COLLECT (ULTIMATE VERSION) ]] --
+-- [[ ALPHA PROJECT - GOD MODE AUTO FARM & COLLECT (CLEAN VERSION) ]] --
 
 local CoreGui = game:GetService("CoreGui")
 local Players = game:GetService("Players")
@@ -6,7 +6,7 @@ local RS = game:GetService("ReplicatedStorage")
 local TS = game:GetService("TweenService")
 local LP = Players.LocalPlayer
 
--- Remotes
+-- Remotes Dasar
 local PlaceRemote = RS:WaitForChild("Remotes"):WaitForChild("PlayerPlaceItem")
 local FistRemote = RS:WaitForChild("Remotes"):WaitForChild("PlayerFist")
 
@@ -24,10 +24,9 @@ end
 _G.Farm_Active = false
 _G.AutoCollect = false
 _G.Farm_PlaceDelay = 0.15 
-_G.Farm_HitDelay = 0.13   
+_G.Farm_HitDelay = 0.15   
 _G.Farm_HitCount = 3      
-_G.Farm_SlotIndex = "1"
-_G.Farm_ItemID = nil 
+_G.Farm_SlotIndex = 1     
 _G.Farm_Targets = {}
 
 local Theme = {
@@ -39,56 +38,85 @@ local Theme = {
 }
 
 local SlotInputBox = nil
-local DropBtn = nil
 
--- [[ 0. TOMBOL START ]] --
+-- [[ 0. TOMBOL START (GAYA TOGGLE) ]] --
 local StartFrame = Instance.new("Frame", Page)
-StartFrame.Size = UDim2.new(1, -10, 0, 45); StartFrame.BackgroundTransparency = 1; StartFrame.ZIndex = 1
+StartFrame.Size = UDim2.new(1, -10, 0, 35)
+StartFrame.BackgroundColor3 = Theme.Item -- Samakan dengan warna baris lain
+Instance.new("UICorner", StartFrame).CornerRadius = UDim.new(0, 6)
+StartFrame.ZIndex = 1
 
+-- Tambahkan Label Teks di sebelah kiri
+local StartLbl = Instance.new("TextLabel", StartFrame)
+StartLbl.Size = UDim2.new(0.6, 0, 1, 0)
+StartLbl.Position = UDim2.new(0, 10, 0, 0)
+StartLbl.Text = "Auto Farm" 
+StartLbl.TextColor3 = Theme.Text
+StartLbl.Font = Enum.Font.Gotham
+StartLbl.TextSize = 12
+StartLbl.BackgroundTransparency = 1
+StartLbl.TextXAlignment = Enum.TextXAlignment.Left
+
+-- Tombol Saklar (Toggle) di sebelah kanan
 local StartBtn = Instance.new("TextButton", StartFrame)
-StartBtn.Size = UDim2.new(1, 0, 1, 0); StartBtn.BackgroundColor3 = Theme.Main
-StartBtn.Text = "AUTO FARM : OFF"; StartBtn.TextColor3 = Color3.fromRGB(255, 80, 80)
-StartBtn.Font = Enum.Font.GothamBlack; StartBtn.TextSize = 14; Instance.new("UICorner", StartBtn).CornerRadius = UDim.new(0, 8)
-local StartStroke = Instance.new("UIStroke", StartBtn); StartStroke.Color = Color3.fromRGB(255, 80, 80); StartStroke.Thickness = 1.5
+StartBtn.Size = UDim2.new(0.45, -10, 0.1, 22)
+StartBtn.Position = UDim2.new(0.58, -10, 0.5, -11)
+StartBtn.BackgroundColor3 = Theme.Main
+StartBtn.Text = "OFF"
+StartBtn.TextColor3 = Color3.fromRGB(255, 80, 80)
+StartBtn.Font = Enum.Font.GothamBold
+StartBtn.TextSize = 10
+Instance.new("UICorner", StartBtn).CornerRadius = UDim.new(0, 4)
+local StartStroke = Instance.new("UIStroke", StartBtn)
+StartStroke.Color = Color3.fromRGB(255, 80, 80)
+StartStroke.Thickness = 1
 
 StartBtn.MouseButton1Click:Connect(function()
     _G.Farm_Active = not _G.Farm_Active
     if _G.Farm_Active then
-        StartBtn.Text = "AUTO FARM : ON"
-        StartBtn.TextColor3 = Theme.Accent; StartStroke.Color = Theme.Accent
-        TS:Create(StartBtn, TweenInfo.new(0.3), {BackgroundColor3 = Theme.Item}):Play()
+        StartBtn.Text = "ON"
+        StartBtn.TextColor3 = Theme.Accent
+        StartStroke.Color = Theme.Accent
+        TS:Create(StartBtn, TweenInfo.new(0.2), {BackgroundColor3 = Theme.Main}):Play()
     else
-        StartBtn.Text = "AUTO FARM : OFF"
-        StartBtn.TextColor3 = Color3.fromRGB(255, 80, 80); StartStroke.Color = Color3.fromRGB(255, 80, 80)
-        TS:Create(StartBtn, TweenInfo.new(0.3), {BackgroundColor3 = Theme.Main}):Play()
+        StartBtn.Text = "OFF"
+        StartBtn.TextColor3 = Color3.fromRGB(255, 80, 80)
+        StartStroke.Color = Color3.fromRGB(255, 80, 80)
+        TS:Create(StartBtn, TweenInfo.new(0.2), {BackgroundColor3 = Theme.Main}):Play()
     end
 end)
 
--- [[ 1. SISTEM INVENTORY & DROPDOWN ]] --
+-- [[ 1. SISTEM INVENTORY & DROPDOWN (BUG FIX) ]] --
 local function GetInventoryItems()
     local items = {}
     pcall(function()
         local InventoryModule = require(RS.Modules.Inventory)
         local ItemsManager = require(RS.Managers.ItemsManager)
 
-        for slotIndex, data in pairs(InventoryModule.Stacks) do
-            if type(data) == "table" and data.Id then
-                local itemID = data.Id 
-                local dataInfo = ItemsManager.ItemsData and ItemsManager.ItemsData[itemID]
-                local realName = (dataInfo and dataInfo.Name) and dataInfo.Name or itemID
+        for slotIndex, itemData in pairs(InventoryModule.Stacks) do
+            if type(itemData) == "table" and itemData.Id then
+                local itemStringID = itemData.Id 
                 
-                if type(itemID) == "string" and string.sub(itemID, -8) == "_sapling" then
+                -- [!] KUNCI FIX: Mengambil data dari Tabel (ItemsData), BUKAN memanggil fungsi!
+                local dataInfo = ItemsManager.ItemsData and ItemsManager.ItemsData[itemStringID]
+                local realName = (dataInfo and dataInfo.Name) and dataInfo.Name or itemStringID
+                
+                -- Fix format Sapling
+                if type(itemStringID) == "string" and string.sub(itemStringID, -8) == "_sapling" then
                     if not string.match(string.lower(realName), "sapling") then
                         realName = realName .. " Sapling"
                     end
                 end
                 
                 local displayName = realName .. " [" .. tostring(slotIndex) .. "]"
-                if not items[displayName] then items[displayName] = {Slot = slotIndex, ID = itemID} end
+                if not items[displayName] then items[displayName] = slotIndex end
             end
         end
     end)
-    if next(items) == nil then items["Tas Kosong / Loading"] = {Slot = "1", ID = nil} end
+    
+    -- Fallback anti-error jika tas benar-benar kosong atau belum memuat
+    if next(items) == nil then items["Tas Kosong / Loading"] = 1 end
+    
     return items
 end
 
@@ -96,7 +124,7 @@ local DropRow = Instance.new("Frame", Page)
 DropRow.Size = UDim2.new(1, -10, 0, 35); DropRow.BackgroundColor3 = Theme.Item; Instance.new("UICorner", DropRow).CornerRadius = UDim.new(0, 6); DropRow.ZIndex = 50 
 local DropLbl = Instance.new("TextLabel", DropRow)
 DropLbl.Size = UDim2.new(0.5, 0, 1, 0); DropLbl.Position = UDim2.new(0, 10, 0, 0); DropLbl.Text = "Target Farm Block"; DropLbl.TextColor3 = Theme.Text; DropLbl.Font = Enum.Font.Gotham; DropLbl.TextSize = 12; DropLbl.BackgroundTransparency = 1; DropLbl.TextXAlignment = Enum.TextXAlignment.Left
-DropBtn = Instance.new("TextButton", DropRow)
+local DropBtn = Instance.new("TextButton", DropRow)
 DropBtn.Size = UDim2.new(0.45, -10, 0.8, 0); DropBtn.Position = UDim2.new(0.55, 0, 0.1, 0); DropBtn.BackgroundColor3 = Theme.Main; DropBtn.Text = "Select Block..."; DropBtn.TextColor3 = Theme.SubText; DropBtn.Font = Enum.Font.Gotham; DropBtn.TextSize = 11; Instance.new("UICorner", DropBtn).CornerRadius = UDim.new(0, 6)
 local DropList = Instance.new("ScrollingFrame", DropRow)
 DropList.Size = UDim2.new(0.45, -10, 0, 120); DropList.Position = UDim2.new(0.55, 0, 1.1, 0); DropList.BackgroundColor3 = Theme.Main; DropList.Visible = false; DropList.BorderSizePixel = 0; DropList.ScrollBarThickness = 2; DropList.ZIndex = 100; Instance.new("UICorner", DropList).CornerRadius = UDim.new(0, 6)
@@ -104,15 +132,13 @@ local DropLayout = Instance.new("UIListLayout", DropList); DropLayout.Horizontal
 
 local function RefreshDropdown()
     for _, child in pairs(DropList:GetChildren()) do if child:IsA("TextButton") then child:Destroy() end end
-    for displayName, itemData in pairs(GetInventoryItems()) do
+    for displayName, slotIndex in pairs(GetInventoryItems()) do
         local ItemBtn = Instance.new("TextButton", DropList)
         ItemBtn.Size = UDim2.new(1, 0, 0, 25); ItemBtn.BackgroundTransparency = 1; ItemBtn.Text = displayName; ItemBtn.TextColor3 = Theme.SubText; ItemBtn.Font = Enum.Font.Gotham; ItemBtn.TextSize = 11; ItemBtn.ZIndex = 101
-        
         ItemBtn.MouseButton1Click:Connect(function()
-            _G.Farm_SlotIndex = tostring(itemData.Slot)
-            _G.Farm_ItemID = itemData.ID 
+            _G.Farm_SlotIndex = slotIndex 
             DropBtn.Text = displayName
-            if SlotInputBox then SlotInputBox.Text = tostring(itemData.Slot) end
+            if SlotInputBox then SlotInputBox.Text = tostring(slotIndex) end
             DropList.Visible = false
         end)
     end
@@ -129,27 +155,27 @@ local function CreateSetting(label, defaultVal, globalVar)
     local Box = Instance.new("TextBox", Frame); Box.Size = UDim2.new(0.45, -10, 0.8, 0); Box.Position = UDim2.new(0.55, 0, 0.1, 0); Box.BackgroundColor3 = Theme.Main; Box.TextColor3 = Theme.Accent; Box.Font = Enum.Font.GothamBold; Box.TextSize = 12; Box.Text = tostring(defaultVal); Box.ZIndex = 1; Instance.new("UICorner", Box).CornerRadius = UDim.new(0, 6)
     
     Box.FocusLost:Connect(function() 
-        if type(defaultVal) == "string" then _G[globalVar] = tostring(Box.Text) else _G[globalVar] = tonumber(Box.Text) or defaultVal end
+        _G[globalVar] = tonumber(Box.Text) or defaultVal 
     end)
     return Box 
 end
 
-SlotInputBox = CreateSetting("Manual Slot (Cth: 1, 2):", _G.Farm_SlotIndex, "Farm_SlotIndex") 
-CreateSetting("Place Delay (Detik):", _G.Farm_PlaceDelay, "Farm_PlaceDelay")
-CreateSetting("Hit Delay (Detik):", _G.Farm_HitDelay, "Farm_HitDelay")
-CreateSetting("Hit Count (Pukulan):", _G.Farm_HitCount, "Farm_HitCount")
+SlotInputBox = CreateSetting("Manual Slot BP:", _G.Farm_SlotIndex, "Farm_SlotIndex") 
+CreateSetting("Place Delay (Second):", _G.Farm_PlaceDelay, "Farm_PlaceDelay")
+CreateSetting("Hit Delay (Second):", _G.Farm_HitDelay, "Farm_HitDelay")
+CreateSetting("Hit Count:", _G.Farm_HitCount, "Farm_HitCount")
 
 -- [[ 3. AUTO COLLECT TOGGLE ]] --
 local CollectFrame = Instance.new("Frame", Page)
 CollectFrame.Size = UDim2.new(1, -10, 0, 35); CollectFrame.BackgroundColor3 = Theme.Item; Instance.new("UICorner", CollectFrame).CornerRadius = UDim.new(0, 6); CollectFrame.ZIndex = 1
-local CollectLbl = Instance.new("TextLabel", CollectFrame); CollectLbl.Size = UDim2.new(0.6, 0, 1, 0); CollectLbl.Position = UDim2.new(0, 10, 0, 0); CollectLbl.Text = "Auto Collect (Aman)"; CollectLbl.TextColor3 = Theme.Text; CollectLbl.Font = Enum.Font.Gotham; CollectLbl.TextSize = 12; CollectLbl.BackgroundTransparency = 1; CollectLbl.TextXAlignment = Enum.TextXAlignment.Left
-local CollectBtn = Instance.new("TextButton", CollectFrame); CollectBtn.Size = UDim2.new(0, 50, 0, 22); CollectBtn.Position = UDim2.new(1, -60, 0.5, -11); CollectBtn.BackgroundColor3 = Theme.Main; CollectBtn.Text = "OFF"; CollectBtn.TextColor3 = Color3.fromRGB(255, 80, 80); CollectBtn.Font = Enum.Font.GothamBold; CollectBtn.TextSize = 10; Instance.new("UICorner", CollectBtn).CornerRadius = UDim.new(0, 4); local CollectStroke = Instance.new("UIStroke", CollectBtn); CollectStroke.Color = Color3.fromRGB(255, 80, 80); CollectStroke.Thickness = 1
+local CollectLbl = Instance.new("TextLabel", CollectFrame); CollectLbl.Size = UDim2.new(0.6, 0, 1, 0); CollectLbl.Position = UDim2.new(0, 10, 0, 0); CollectLbl.Text = "Auto Collect"; CollectLbl.TextColor3 = Theme.Text; CollectLbl.Font = Enum.Font.Gotham; CollectLbl.TextSize = 12; CollectLbl.BackgroundTransparency = 1; CollectLbl.TextXAlignment = Enum.TextXAlignment.Left
+local CollectBtn = Instance.new("TextButton", CollectFrame); CollectBtn.Size = UDim2.new(0.45, -10, 0.1, 22); CollectBtn.Position = UDim2.new(0.58, -10, 0.5, -11); CollectBtn.BackgroundColor3 = Theme.Main; CollectBtn.Text = "OFF"; CollectBtn.TextColor3 = Color3.fromRGB(255, 80, 80); CollectBtn.Font = Enum.Font.GothamBold; CollectBtn.TextSize = 10; Instance.new("UICorner", CollectBtn).CornerRadius = UDim.new(0, 4); local CollectStroke = Instance.new("UIStroke", CollectBtn); CollectStroke.Color = Color3.fromRGB(255, 80, 80); CollectStroke.Thickness = 1
 
 CollectBtn.MouseButton1Click:Connect(function()
     _G.AutoCollect = not _G.AutoCollect
     if _G.AutoCollect then
         CollectBtn.Text = "ON"; CollectBtn.TextColor3 = Theme.Accent; CollectStroke.Color = Theme.Accent
-        TS:Create(CollectBtn, TweenInfo.new(0.2), {BackgroundColor3 = Theme.Item}):Play()
+        TS:Create(CollectBtn, TweenInfo.new(0.2), {BackgroundColor3 = Theme.Main}):Play()
     else
         CollectBtn.Text = "OFF"; CollectBtn.TextColor3 = Color3.fromRGB(255, 80, 80); CollectStroke.Color = Color3.fromRGB(255, 80, 80)
         TS:Create(CollectBtn, TweenInfo.new(0.2), {BackgroundColor3 = Theme.Main}):Play()
@@ -178,34 +204,28 @@ for y = 2, -2, -1 do
     end
 end
 
--- [[ ENGINE KECERDASAN BUATAN (AUTO-SWITCH STACKS) ]] --
-local function CheckAndSwitchSlot()
-    if not _G.Farm_ItemID then return end
-    if type(_G.Farm_SlotIndex) == "string" and string.find(_G.Farm_SlotIndex, ",") then return end
-    
-    local currentSlotNum = tonumber(_G.Farm_SlotIndex)
-    if not currentSlotNum then return end
+-- [[ ENGINE GOD MODE: AUTO COLLECT & AUTO FARM ]] --
 
-    pcall(function()
-        local Inv = require(RS.Modules.Inventory)
-        
-        local currentData = Inv.Stacks[currentSlotNum]
-        if currentData and currentData.Id == _G.Farm_ItemID and (currentData.Amount and currentData.Amount > 0) then
-            return 
-        end
-        
-        for slotIndex, data in pairs(Inv.Stacks) do
-            if type(data) == "table" and data.Id == _G.Farm_ItemID and (data.Amount and data.Amount > 0) then
-                _G.Farm_SlotIndex = tostring(slotIndex)
-                if SlotInputBox then SlotInputBox.Text = tostring(slotIndex) end
-                if DropBtn then DropBtn.Text = "Auto-Switched to Slot " .. tostring(slotIndex) end
-                break
-            end
-        end
-    end)
+local function GetCurrentGrid()
+    local Char = LP.Character
+    local Root = Char and Char:FindFirstChild("HumanoidRootPart")
+    return Root and Vector2.new(math.floor(Root.Position.X / 4.5 + 0.5), math.floor(Root.Position.Y / 4.5 + 0.5)) or Vector2.new(0,0)
 end
 
--- [[ ENGINE GOD MODE: AUTO COLLECT & AUTO FARM ]] --
+-- [FITUR BARU] Fungsi untuk memalsukan langkah kecil agar tidak terdeteksi teleport
+local function SmoothMove(remote, startPos, endPos)
+    local dist = (endPos - startPos).Magnitude
+    local steps = math.ceil(dist / 1.5) -- Membagi jarak jadi beberapa langkah kecil
+    if steps < 1 then steps = 1 end
+    
+    for i = 1, steps do
+        local currentPos = startPos:Lerp(endPos, i / steps)
+        pcall(function() remote:FireServer(currentPos) end)
+        task.wait(0.04) -- Jeda menyesuaikan kecepatan server (20 Tick per detik)
+    end
+end
+
+-- Fungsi Pintar untuk Mengambil Barang (Pola Bintang Anti-Nyangkut)
 local function StealthCollectDrops()
     local Drops = workspace:FindFirstChild("Drops")
     if not Drops or #Drops:GetChildren() == 0 then return end
@@ -215,46 +235,56 @@ local function StealthCollectDrops()
     if not MyRemote then return end
 
     local MyHitbox = workspace:FindFirstChild("Hitbox") and workspace.Hitbox:FindFirstChild(LP.Name)
-    if not MyHitbox then return end
+    local PosisiAsli = MyHitbox and Vector2.new(MyHitbox.Position.X, MyHitbox.Position.Y) or Vector2.new(0,0)
     
-    local PosisiAsli2D = Vector2.new(MyHitbox.Position.X, MyHitbox.Position.Y)
-    local PosisiAsli3D = MyHitbox.Position
+    local cp = GetCurrentGrid()
+    local validGrids = {}
+    for _, o in ipairs(_G.Farm_Targets) do
+        local tx, ty = math.floor(cp.X + o.X), math.floor(cp.Y + o.Y)
+        validGrids[tx .. "," .. ty] = true 
+    end
+
     local hasCollected = false
 
     for _, item in ipairs(Drops:GetChildren()) do
         if not _G.Farm_Active or not _G.AutoCollect then break end
         
-        local targetPart = item:IsA("Model") and (item.PrimaryPart or item:FindFirstChildWhichIsA("BasePart")) or (item:IsA("BasePart") and item or item:FindFirstChildWhichIsA("BasePart"))
+        local targetPart = nil
+        if item:IsA("Model") then targetPart = item.PrimaryPart or item:FindFirstChildWhichIsA("BasePart")
+        elseif item:IsA("BasePart") then targetPart = item
+        else targetPart = item:FindFirstChildWhichIsA("BasePart") end
         
         if targetPart then
-            hasCollected = true
-            local fakeX = targetPart.Position.X
-            local fakeY = targetPart.Position.Y + 3 
+            local posBarang = targetPart.Position
+            local itemX = math.floor(posBarang.X / 4.5 + 0.5)
+            local itemY = math.floor(posBarang.Y / 4.5 + 0.5)
             
-            MyHitbox.Position = Vector3.new(fakeX, fakeY, PosisiAsli3D.Z)
-            pcall(function() MyRemote:FireServer(Vector2.new(fakeX, fakeY)) end)
-            
-            if firetouchinterest then
-                pcall(function()
-                    firetouchinterest(MyHitbox, targetPart, 0)
-                    firetouchinterest(MyHitbox, targetPart, 1)
-                end)
+            if validGrids[itemX .. "," .. itemY] then
+                hasCollected = true
+                local KoordinatPalsu = Vector2.new(posBarang.X, posBarang.Y)
+                
+                -- 1. BERJALAN KILAT DARI TENGAH KE BARANG
+                SmoothMove(MyRemote, PosisiAsli, KoordinatPalsu)
+                
+                if MyHitbox and firetouchinterest then
+                    pcall(function()
+                        firetouchinterest(MyHitbox, targetPart, 0)
+                        firetouchinterest(MyHitbox, targetPart, 1)
+                    end)
+                end
+                task.wait(0.05) -- Biarkan barang masuk ke tas
+                
+                -- 2. BERJALAN KILAT KEMBALI KE TENGAH SEBELUM MENGAMBIL BARANG LAIN!
+                SmoothMove(MyRemote, KoordinatPalsu, PosisiAsli)
+                task.wait(0.05)
             end
-            task.wait(0.1) 
         end
     end
     
+    -- Pastikan bot benar-benar lapor ke server kalau dia ada di tengah di akhir sesi
     if hasCollected then
-        MyHitbox.Position = PosisiAsli3D
-        pcall(function() MyRemote:FireServer(PosisiAsli2D) end)
-        task.wait(0.1)
+        pcall(function() MyRemote:FireServer(PosisiAsli) end)
     end
-end
-
-local function GetCurrentGrid()
-    local Char = LP.Character
-    local Root = Char and Char:FindFirstChild("HumanoidRootPart")
-    return Root and Vector2.new(math.floor(Root.Position.X / 4.5 + 0.5), math.floor(Root.Position.Y / 4.5 + 0.5)) or Vector2.new(0,0)
 end
 
 task.spawn(function()
@@ -265,31 +295,15 @@ task.spawn(function()
             
             local cp = GetCurrentGrid()
             
-            -- Cek dan pindah slot secara cerdas sebelum menanam (Jalan di Delta/Mobile)
-            CheckAndSwitchSlot()
-            
-            -- PHASE 1: FORCE PLACE
             for _, o in ipairs(_G.Farm_Targets) do
                 if not _G.Farm_Active then break end
                 local tx, ty = math.floor(cp.X + o.X), math.floor(cp.Y + o.Y)
-                
-                -- Sistem Multi-Slot Brute Force (Jalan di Xeno/PC)
-                local slotsToUse = {}
-                for s in string.gmatch(tostring(_G.Farm_SlotIndex), "%d+") do
-                    table.insert(slotsToUse, tonumber(s))
-                end
-                if #slotsToUse == 0 then table.insert(slotsToUse, 1) end
-                
-                for _, slotNum in ipairs(slotsToUse) do
-                    pcall(function() PlaceRemote:FireServer(Vector2.new(tx, ty), slotNum) end)
-                end
-                
+                if _G.Farm_SlotIndex ~= nil then pcall(function() PlaceRemote:FireServer(Vector2.new(tx, ty), _G.Farm_SlotIndex) end) end
                 task.wait(_G.Farm_PlaceDelay)
             end
             
-            task.wait(0.4) 
+            task.wait(0.1) 
             
-            -- PHASE 2: FORCE BREAK
             for i = 1, _G.Farm_HitCount do
                 if not _G.Farm_Active then break end
                 for _, o in ipairs(_G.Farm_Targets) do
