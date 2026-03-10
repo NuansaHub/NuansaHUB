@@ -219,7 +219,7 @@ local function SmoothMove(remote, startPos, endPos)
     -- [1] ATUR UKURAN LANGKAH DI SINI (Bawaan awal: 1.5)
     -- Semakin BESAR angkanya = Semakin SEDIKIT langkahnya = SEMAKIN CEPAT SAMPAI!
     -- Coba gunakan angka 4.0 atau 5.0 untuk lari kilat.
-    local steps = math.ceil(dist / 5.0) 
+    local steps = math.ceil(dist / 4.0) 
     
     if steps < 1 then steps = 1 end
     
