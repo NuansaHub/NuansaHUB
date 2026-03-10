@@ -86,6 +86,73 @@ StartBtn.MouseButton1Click:Connect(function()
     end
 end)
 
+-- [[ 0.5. FITUR SAVE POSITION ]] --
+local PosFrame = Instance.new("Frame", Page)
+PosFrame.Size = UDim2.new(1, -10, 0, 35)
+PosFrame.BackgroundColor3 = Theme.Item
+Instance.new("UICorner", PosFrame).CornerRadius = UDim.new(0, 6)
+PosFrame.ZIndex = 1
+
+local PosLbl = Instance.new("TextLabel", PosFrame)
+PosLbl.Size = UDim2.new(0.4, 0, 1, 0)
+PosLbl.Position = UDim2.new(0, 10, 0, 0)
+PosLbl.Text = "Save Position"
+PosLbl.TextColor3 = Theme.Text
+PosLbl.Font = Enum.Font.Gotham
+PosLbl.TextSize = 12
+PosLbl.BackgroundTransparency = 1
+PosLbl.TextXAlignment = Enum.TextXAlignment.Left
+
+local CoordLbl = Instance.new("TextLabel", PosFrame)
+CoordLbl.Size = UDim2.new(0.3, 0, 1, 0)
+CoordLbl.Position = UDim2.new(0.4, 0, 0, 0)
+CoordLbl.Text = "[ NONE ]"
+CoordLbl.TextColor3 = Theme.SubText
+CoordLbl.Font = Enum.Font.Gotham
+CoordLbl.TextSize = 10
+CoordLbl.BackgroundTransparency = 1
+CoordLbl.TextXAlignment = Enum.TextXAlignment.Center
+
+local SaveBtn = Instance.new("TextButton", PosFrame)
+SaveBtn.Size = UDim2.new(0.25, -10, 0.1, 22)
+SaveBtn.Position = UDim2.new(0.75, 0, 0.5, -11)
+SaveBtn.BackgroundColor3 = Theme.Main
+SaveBtn.Text = "SAVE"
+SaveBtn.TextColor3 = Theme.Accent
+SaveBtn.Font = Enum.Font.GothamBold
+SaveBtn.TextSize = 10
+Instance.new("UICorner", SaveBtn).CornerRadius = UDim.new(0, 4)
+local SaveStroke = Instance.new("UIStroke", SaveBtn)
+SaveStroke.Color = Theme.Accent
+SaveStroke.Thickness = 1
+
+-- Logika Tombol Save
+SaveBtn.MouseButton1Click:Connect(function()
+    local Char = LP.Character
+    local Root = Char and Char:FindFirstChild("HumanoidRootPart")
+    
+    if Root then
+        -- [!] FIX: Ubah Studs menjadi Grid dengan dibagi 4.5
+        local posX = math.floor(Root.Position.X / 4.5 + 0.5)
+        local posY = math.floor(Root.Position.Y / 4.5 + 0.5)
+        
+        -- Menyimpan koordinat ke variabel global untuk digunakan nanti
+        _G.SavedPos3D = Root.Position
+        _G.SavedPos2D = Vector2.new(Root.Position.X, Root.Position.Y)
+        
+        -- Update UI
+        CoordLbl.Text = "[" .. posX .. ", " .. posY .. "]"
+        CoordLbl.TextColor3 = Theme.Accent
+        
+        -- Animasi Tombol
+        SaveBtn.Text = "SAVED!"
+        TS:Create(SaveBtn, TweenInfo.new(0.2), {BackgroundColor3 = Theme.Accent, TextColor3 = Theme.Main}):Play()
+        task.wait(1)
+        SaveBtn.Text = "SAVE"
+        TS:Create(SaveBtn, TweenInfo.new(0.2), {BackgroundColor3 = Theme.Main, TextColor3 = Theme.Accent}):Play()
+    end
+end)
+
 -- [[ 1. SISTEM INVENTORY & DROPDOWN (BUG FIX) ]] --
 local function GetInventoryItems()
     local items = {}
@@ -234,7 +301,7 @@ local function SmoothMove(remote, startPos, endPos)
     end
 end
 
--- Fungsi Pintar untuk Mengambil Barang (Pola Bintang Anti-Nyangkut)
+-- Fungsi Pintar untuk Mengambil Barang (Sapu Bersih Target Grid & Pulang)
 local function StealthCollectDrops()
     local Drops = workspace:FindFirstChild("Drops")
     if not Drops or #Drops:GetChildren() == 0 then return end
@@ -244,16 +311,22 @@ local function StealthCollectDrops()
     if not MyRemote then return end
 
     local MyHitbox = workspace:FindFirstChild("Hitbox") and workspace.Hitbox:FindFirstChild(LP.Name)
-    local PosisiAsli = MyHitbox and Vector2.new(MyHitbox.Position.X, MyHitbox.Position.Y) or Vector2.new(0,0)
+    if not MyHitbox then return end
     
-    local cp = GetCurrentGrid()
+    -- [!] WAJIB: Kalau belum klik Save Position, bot tidak akan bergerak
+    if not _G.SavedPos3D or not _G.SavedPos2D then return end
+
+    local hasCollected = false
+    -- Melacak posisi 'roh' bot saat ini untuk berjalan (dimulai dari posisi Hitbox)
+    local currentPos = Vector2.new(MyHitbox.Position.X, MyHitbox.Position.Y)
+    
+    -- 1. BANGUN RADAR GRID TARGET (Berdasarkan titik Save Position)
+    local cp = Vector2.new(math.floor(_G.SavedPos3D.X / 4.5 + 0.5), math.floor(_G.SavedPos3D.Y / 4.5 + 0.5))
     local validGrids = {}
     for _, o in ipairs(_G.Farm_Targets) do
         local tx, ty = math.floor(cp.X + o.X), math.floor(cp.Y + o.Y)
         validGrids[tx .. "," .. ty] = true 
     end
-
-    local hasCollected = false
 
     for _, item in ipairs(Drops:GetChildren()) do
         if not _G.Farm_Active or not _G.AutoCollect then break end
@@ -264,16 +337,19 @@ local function StealthCollectDrops()
         else targetPart = item:FindFirstChildWhichIsA("BasePart") end
         
         if targetPart then
-            local posBarang = targetPart.Position
-            local itemX = math.floor(posBarang.X / 4.5 + 0.5)
-            local itemY = math.floor(posBarang.Y / 4.5 + 0.5)
+            local itemPos3D = targetPart.Position
+            local itemPos2D = Vector2.new(itemPos3D.X, itemPos3D.Y)
             
+            -- Konversi posisi barang ke bahasa Grid
+            local itemX = math.floor(itemPos3D.X / 4.5 + 0.5)
+            local itemY = math.floor(itemPos3D.Y / 4.5 + 0.5)
+            
+            -- 2. HANYA SEDOT JIKA BARANG JATUH TEPAT DI GRID YANG DITANDAI DI UI
             if validGrids[itemX .. "," .. itemY] then
                 hasCollected = true
-                local KoordinatPalsu = Vector2.new(posBarang.X, posBarang.Y)
                 
-                -- 1. BERJALAN KILAT DARI TENGAH KE BARANG
-                SmoothMove(MyRemote, PosisiAsli, KoordinatPalsu)
+                -- Berjalan perlahan dari titik saat ini ke barang (A -> B -> C)
+                SmoothMove(MyRemote, currentPos, itemPos2D)
                 
                 if MyHitbox and firetouchinterest then
                     pcall(function()
@@ -281,28 +357,39 @@ local function StealthCollectDrops()
                         firetouchinterest(MyHitbox, targetPart, 1)
                     end)
                 end
-                task.wait(0.05) -- Biarkan barang masuk ke tas
+                task.wait(0.05) -- Biarkan barang masuk tas
                 
-                -- 2. BERJALAN KILAT KEMBALI KE TENGAH SEBELUM MENGAMBIL BARANG LAIN!
-                SmoothMove(MyRemote, KoordinatPalsu, PosisiAsli)
-                task.wait(0.05)
+                -- Update posisi roh bot sekarang berada di titik barang tersebut
+                currentPos = itemPos2D
             end
         end
     end
     
-    -- Pastikan bot benar-benar lapor ke server kalau dia ada di tengah di akhir sesi
+    -- 3. SETELAH AREA TARGET BERSIH, JALAN PULANG KE SAVE POSITION
     if hasCollected then
-        pcall(function() MyRemote:FireServer(PosisiAsli) end)
+        SmoothMove(MyRemote, currentPos, _G.SavedPos2D)
+        
+        -- Lapor ke server bahwa kita sudah tiba dengan selamat di rumah
+        pcall(function() MyRemote:FireServer(_G.SavedPos2D) end)
+        task.wait(0.1)
     end
 end
 
+-- LOOP UTAMA AUTO FARM
 task.spawn(function()
     while true do
         if _G.Farm_Active and #_G.Farm_Targets > 0 then
             
             if _G.AutoCollect then StealthCollectDrops() end
             
-            local cp = GetCurrentGrid()
+            -- [!] PENTING: Target penanaman grid sekarang memakai Save Position!
+            local cp
+            if _G.SavedPos3D then
+                cp = Vector2.new(math.floor(_G.SavedPos3D.X / 4.5 + 0.5), math.floor(_G.SavedPos3D.Y / 4.5 + 0.5))
+            else
+                -- Fallback kalau lupa nge-save
+                cp = GetCurrentGrid()
+            end
             
             for _, o in ipairs(_G.Farm_Targets) do
                 if not _G.Farm_Active then break end
