@@ -1,4 +1,4 @@
--- [[ ALPHA PROJECT - GOD MODE AUTO FARM & COLLECT (ULTIMATE LOCKED) ]] --
+-- [[ ALPHA PROJECT - GOD MODE AUTO FARM & COLLECT (CLEAN VERSION) ]] --
 
 local CoreGui = game:GetService("CoreGui")
 local Players = game:GetService("Players")
@@ -6,7 +6,7 @@ local RS = game:GetService("ReplicatedStorage")
 local TS = game:GetService("TweenService")
 local LP = Players.LocalPlayer
 
--- Remotes
+-- Remotes Dasar
 local PlaceRemote = RS:WaitForChild("Remotes"):WaitForChild("PlayerPlaceItem")
 local FistRemote = RS:WaitForChild("Remotes"):WaitForChild("PlayerFist")
 
@@ -26,14 +26,8 @@ _G.AutoCollect = false
 _G.Farm_PlaceDelay = 0.15 
 _G.Farm_HitDelay = 0.13   
 _G.Farm_HitCount = 3      
-_G.Farm_SlotIndex = "1"
-_G.Farm_ItemID = nil 
+_G.Farm_SlotIndex = 1     
 _G.Farm_Targets = {}
-
--- Variabel untuk mengunci posisi
-_G.Farm_Center3D = nil
-_G.Farm_Center2D = nil
-_G.Farm_CenterGrid = nil
 
 local Theme = {
     Main = Color3.fromRGB(15, 17, 20),    
@@ -44,7 +38,6 @@ local Theme = {
 }
 
 local SlotInputBox = nil
-local DropBtn = nil
 
 -- [[ 0. TOMBOL START ]] --
 local StartFrame = Instance.new("Frame", Page)
@@ -66,36 +59,40 @@ StartBtn.MouseButton1Click:Connect(function()
         StartBtn.Text = "AUTO FARM : OFF"
         StartBtn.TextColor3 = Color3.fromRGB(255, 80, 80); StartStroke.Color = Color3.fromRGB(255, 80, 80)
         TS:Create(StartBtn, TweenInfo.new(0.3), {BackgroundColor3 = Theme.Main}):Play()
-        -- Hapus memori kunci saat dimatikan
-        _G.Farm_Center3D = nil
-        _G.Farm_Center2D = nil
-        _G.Farm_CenterGrid = nil
     end
 end)
 
--- [[ 1. SISTEM INVENTORY & DROPDOWN ]] --
+-- [[ 1. SISTEM INVENTORY & DROPDOWN (BUG FIX) ]] --
 local function GetInventoryItems()
     local items = {}
     pcall(function()
         local InventoryModule = require(RS.Modules.Inventory)
         local ItemsManager = require(RS.Managers.ItemsManager)
 
-        for slotIndex, data in pairs(InventoryModule.Stacks) do
-            if type(data) == "table" and data.Id then
-                local itemID = data.Id 
-                local dataInfo = ItemsManager.ItemsData and ItemsManager.ItemsData[itemID]
-                local realName = (dataInfo and dataInfo.Name) and dataInfo.Name or itemID
+        for slotIndex, itemData in pairs(InventoryModule.Stacks) do
+            if type(itemData) == "table" and itemData.Id then
+                local itemStringID = itemData.Id 
                 
-                if type(itemID) == "string" and string.sub(itemID, -8) == "_sapling" then
-                    if not string.match(string.lower(realName), "sapling") then realName = realName .. " Sapling" end
+                -- [!] KUNCI FIX: Mengambil data dari Tabel (ItemsData), BUKAN memanggil fungsi!
+                local dataInfo = ItemsManager.ItemsData and ItemsManager.ItemsData[itemStringID]
+                local realName = (dataInfo and dataInfo.Name) and dataInfo.Name or itemStringID
+                
+                -- Fix format Sapling
+                if type(itemStringID) == "string" and string.sub(itemStringID, -8) == "_sapling" then
+                    if not string.match(string.lower(realName), "sapling") then
+                        realName = realName .. " Sapling"
+                    end
                 end
                 
                 local displayName = realName .. " [" .. tostring(slotIndex) .. "]"
-                if not items[displayName] then items[displayName] = {Slot = slotIndex, ID = itemID} end
+                if not items[displayName] then items[displayName] = slotIndex end
             end
         end
     end)
-    if next(items) == nil then items["Tas Kosong / Loading"] = {Slot = "1", ID = nil} end
+    
+    -- Fallback anti-error jika tas benar-benar kosong atau belum memuat
+    if next(items) == nil then items["Tas Kosong / Loading"] = 1 end
+    
     return items
 end
 
@@ -103,7 +100,7 @@ local DropRow = Instance.new("Frame", Page)
 DropRow.Size = UDim2.new(1, -10, 0, 35); DropRow.BackgroundColor3 = Theme.Item; Instance.new("UICorner", DropRow).CornerRadius = UDim.new(0, 6); DropRow.ZIndex = 50 
 local DropLbl = Instance.new("TextLabel", DropRow)
 DropLbl.Size = UDim2.new(0.5, 0, 1, 0); DropLbl.Position = UDim2.new(0, 10, 0, 0); DropLbl.Text = "Target Farm Block"; DropLbl.TextColor3 = Theme.Text; DropLbl.Font = Enum.Font.Gotham; DropLbl.TextSize = 12; DropLbl.BackgroundTransparency = 1; DropLbl.TextXAlignment = Enum.TextXAlignment.Left
-DropBtn = Instance.new("TextButton", DropRow)
+local DropBtn = Instance.new("TextButton", DropRow)
 DropBtn.Size = UDim2.new(0.45, -10, 0.8, 0); DropBtn.Position = UDim2.new(0.55, 0, 0.1, 0); DropBtn.BackgroundColor3 = Theme.Main; DropBtn.Text = "Select Block..."; DropBtn.TextColor3 = Theme.SubText; DropBtn.Font = Enum.Font.Gotham; DropBtn.TextSize = 11; Instance.new("UICorner", DropBtn).CornerRadius = UDim.new(0, 6)
 local DropList = Instance.new("ScrollingFrame", DropRow)
 DropList.Size = UDim2.new(0.45, -10, 0, 120); DropList.Position = UDim2.new(0.55, 0, 1.1, 0); DropList.BackgroundColor3 = Theme.Main; DropList.Visible = false; DropList.BorderSizePixel = 0; DropList.ScrollBarThickness = 2; DropList.ZIndex = 100; Instance.new("UICorner", DropList).CornerRadius = UDim.new(0, 6)
@@ -111,15 +108,13 @@ local DropLayout = Instance.new("UIListLayout", DropList); DropLayout.Horizontal
 
 local function RefreshDropdown()
     for _, child in pairs(DropList:GetChildren()) do if child:IsA("TextButton") then child:Destroy() end end
-    for displayName, itemData in pairs(GetInventoryItems()) do
+    for displayName, slotIndex in pairs(GetInventoryItems()) do
         local ItemBtn = Instance.new("TextButton", DropList)
         ItemBtn.Size = UDim2.new(1, 0, 0, 25); ItemBtn.BackgroundTransparency = 1; ItemBtn.Text = displayName; ItemBtn.TextColor3 = Theme.SubText; ItemBtn.Font = Enum.Font.Gotham; ItemBtn.TextSize = 11; ItemBtn.ZIndex = 101
-        
         ItemBtn.MouseButton1Click:Connect(function()
-            _G.Farm_SlotIndex = tostring(itemData.Slot)
-            _G.Farm_ItemID = itemData.ID 
+            _G.Farm_SlotIndex = slotIndex 
             DropBtn.Text = displayName
-            if SlotInputBox then SlotInputBox.Text = tostring(itemData.Slot) end
+            if SlotInputBox then SlotInputBox.Text = tostring(slotIndex) end
             DropList.Visible = false
         end)
     end
@@ -136,48 +131,20 @@ local function CreateSetting(label, defaultVal, globalVar)
     local Box = Instance.new("TextBox", Frame); Box.Size = UDim2.new(0.45, -10, 0.8, 0); Box.Position = UDim2.new(0.55, 0, 0.1, 0); Box.BackgroundColor3 = Theme.Main; Box.TextColor3 = Theme.Accent; Box.Font = Enum.Font.GothamBold; Box.TextSize = 12; Box.Text = tostring(defaultVal); Box.ZIndex = 1; Instance.new("UICorner", Box).CornerRadius = UDim.new(0, 6)
     
     Box.FocusLost:Connect(function() 
-        if type(defaultVal) == "string" then _G[globalVar] = tostring(Box.Text) else _G[globalVar] = tonumber(Box.Text) or defaultVal end
+        _G[globalVar] = tonumber(Box.Text) or defaultVal 
     end)
     return Box 
 end
 
-SlotInputBox = CreateSetting("Manual Slot (Cth: 1, 2):", _G.Farm_SlotIndex, "Farm_SlotIndex") 
+SlotInputBox = CreateSetting("Manual Slot Tas:", _G.Farm_SlotIndex, "Farm_SlotIndex") 
 CreateSetting("Place Delay (Detik):", _G.Farm_PlaceDelay, "Farm_PlaceDelay")
 CreateSetting("Hit Delay (Detik):", _G.Farm_HitDelay, "Farm_HitDelay")
 CreateSetting("Hit Count (Pukulan):", _G.Farm_HitCount, "Farm_HitCount")
 
--- [[ 2.5 TOMBOL SAVE POSISI ]] --
-local PosFrame = Instance.new("Frame", Page)
-PosFrame.Size = UDim2.new(1, -10, 0, 35); PosFrame.BackgroundTransparency = 1; PosFrame.ZIndex = 1
-
-local PosBtn = Instance.new("TextButton", PosFrame)
-PosBtn.Size = UDim2.new(1, 0, 1, 0); PosBtn.BackgroundColor3 = Theme.Main; PosBtn.Text = "📌 KUNCI POSISI (SET HOME)"; PosBtn.TextColor3 = Theme.Accent
-PosBtn.Font = Enum.Font.GothamBold; PosBtn.TextSize = 12; Instance.new("UICorner", PosBtn).CornerRadius = UDim.new(0, 6)
-local PosStroke = Instance.new("UIStroke", PosBtn); PosStroke.Color = Theme.Accent; PosStroke.Thickness = 1
-
-PosBtn.MouseButton1Click:Connect(function()
-    local MyHitbox = workspace:FindFirstChild("Hitbox") and workspace.Hitbox:FindFirstChild(LP.Name)
-    local Char = LP.Character
-    local Root = Char and Char:FindFirstChild("HumanoidRootPart")
-    
-    if MyHitbox and Root then
-        -- Simpan koordinat ke memori global
-        _G.Farm_Center3D = MyHitbox.Position
-        _G.Farm_Center2D = Vector2.new(MyHitbox.Position.X, MyHitbox.Position.Y)
-        _G.Farm_CenterGrid = Vector2.new(math.floor(Root.Position.X / 4.5 + 0.5), math.floor(Root.Position.Y / 4.5 + 0.5))
-        
-        PosBtn.Text = "✅ TERKUNCI!"
-        PosBtn.TextColor3 = Color3.fromRGB(80, 255, 80); PosStroke.Color = Color3.fromRGB(80, 255, 80)
-        task.wait(1)
-        PosBtn.Text = "📌 KUNCI POSISI (SET HOME)"
-        PosBtn.TextColor3 = Theme.Accent; PosStroke.Color = Theme.Accent
-    end
-end)
-
 -- [[ 3. AUTO COLLECT TOGGLE ]] --
 local CollectFrame = Instance.new("Frame", Page)
 CollectFrame.Size = UDim2.new(1, -10, 0, 35); CollectFrame.BackgroundColor3 = Theme.Item; Instance.new("UICorner", CollectFrame).CornerRadius = UDim.new(0, 6); CollectFrame.ZIndex = 1
-local CollectLbl = Instance.new("TextLabel", CollectFrame); CollectLbl.Size = UDim2.new(0.6, 0, 1, 0); CollectLbl.Position = UDim2.new(0, 10, 0, 0); CollectLbl.Text = "Auto Collect (5x5 Grid)"; CollectLbl.TextColor3 = Theme.Text; CollectLbl.Font = Enum.Font.Gotham; CollectLbl.TextSize = 12; CollectLbl.BackgroundTransparency = 1; CollectLbl.TextXAlignment = Enum.TextXAlignment.Left
+local CollectLbl = Instance.new("TextLabel", CollectFrame); CollectLbl.Size = UDim2.new(0.6, 0, 1, 0); CollectLbl.Position = UDim2.new(0, 10, 0, 0); CollectLbl.Text = "Auto Collect (Sedot Jarak Jauh)"; CollectLbl.TextColor3 = Theme.Text; CollectLbl.Font = Enum.Font.Gotham; CollectLbl.TextSize = 12; CollectLbl.BackgroundTransparency = 1; CollectLbl.TextXAlignment = Enum.TextXAlignment.Left
 local CollectBtn = Instance.new("TextButton", CollectFrame); CollectBtn.Size = UDim2.new(0, 50, 0, 22); CollectBtn.Position = UDim2.new(1, -60, 0.5, -11); CollectBtn.BackgroundColor3 = Theme.Main; CollectBtn.Text = "OFF"; CollectBtn.TextColor3 = Color3.fromRGB(255, 80, 80); CollectBtn.Font = Enum.Font.GothamBold; CollectBtn.TextSize = 10; Instance.new("UICorner", CollectBtn).CornerRadius = UDim.new(0, 4); local CollectStroke = Instance.new("UIStroke", CollectBtn); CollectStroke.Color = Color3.fromRGB(255, 80, 80); CollectStroke.Thickness = 1
 
 CollectBtn.MouseButton1Click:Connect(function()
@@ -213,34 +180,7 @@ for y = 2, -2, -1 do
     end
 end
 
--- [[ ENGINE KECERDASAN BUATAN (AUTO-SWITCH STACKS) ]] --
-local function CheckAndSwitchSlot()
-    if not _G.Farm_ItemID then return end
-    if type(_G.Farm_SlotIndex) == "string" and string.find(_G.Farm_SlotIndex, ",") then return end
-    
-    local currentSlotNum = tonumber(_G.Farm_SlotIndex)
-    if not currentSlotNum then return end
-
-    pcall(function()
-        local Inv = require(RS.Modules.Inventory)
-        
-        local currentData = Inv.Stacks[currentSlotNum]
-        if currentData and currentData.Id == _G.Farm_ItemID and (currentData.Amount and currentData.Amount > 0) then
-            return 
-        end
-        
-        for slotIndex, data in pairs(Inv.Stacks) do
-            if type(data) == "table" and data.Id == _G.Farm_ItemID and (data.Amount and data.Amount > 0) then
-                _G.Farm_SlotIndex = tostring(slotIndex)
-                if SlotInputBox then SlotInputBox.Text = tostring(slotIndex) end
-                if DropBtn then DropBtn.Text = "Auto-Switched to Slot " .. tostring(slotIndex) end
-                break
-            end
-        end
-    end)
-end
-
--- [[ ENGINE GOD MODE: AUTO COLLECT (KUNCI POSISI) ]] --
+-- [[ ENGINE GOD MODE: AUTO COLLECT & AUTO FARM ]] --
 local function StealthCollectDrops()
     local Drops = workspace:FindFirstChild("Drops")
     if not Drops or #Drops:GetChildren() == 0 then return end
@@ -250,48 +190,38 @@ local function StealthCollectDrops()
     if not MyRemote then return end
 
     local MyHitbox = workspace:FindFirstChild("Hitbox") and workspace.Hitbox:FindFirstChild(LP.Name)
-    if not MyHitbox then return end
+    local PosisiAsli = MyHitbox and Vector2.new(MyHitbox.Position.X, MyHitbox.Position.Y) or Vector2.new(0,0)
     
-    -- JIKA BELUM DIKUNCI, JANGAN MENGAMBIL BARANG!
-    if not _G.Farm_Center3D then return end
-
     local hasCollected = false
-    local MaxRadius = 22.5 
 
     for _, item in ipairs(Drops:GetChildren()) do
         if not _G.Farm_Active or not _G.AutoCollect then break end
         
-        local targetPart = item:IsA("Model") and (item.PrimaryPart or item:FindFirstChildWhichIsA("BasePart")) or (item:IsA("BasePart") and item or item:FindFirstChildWhichIsA("BasePart"))
+        local targetPart = nil
+        if item:IsA("Model") then targetPart = item.PrimaryPart or item:FindFirstChildWhichIsA("BasePart")
+        elseif item:IsA("BasePart") then targetPart = item
+        else targetPart = item:FindFirstChildWhichIsA("BasePart") end
         
         if targetPart then
-            local itemPos = targetPart.Position
+            hasCollected = true
+            local posBarang = targetPart.Position
+            local KoordinatPalsu = Vector2.new(posBarang.X, posBarang.Y)
             
-            -- HITUNG JARAK DARI RUMAH UTAMA (Bukan dari posisi Hitbox saat ini!)
-            local diffX = math.abs(itemPos.X - _G.Farm_Center3D.X)
-            local diffY = math.abs(itemPos.Y - _G.Farm_Center3D.Y)
+            pcall(function() MyRemote:FireServer(KoordinatPalsu) end)
             
-            if diffX <= MaxRadius and diffY <= MaxRadius then
-                hasCollected = true
-                
-                MyHitbox.Position = itemPos
-                pcall(function() MyRemote:FireServer(Vector2.new(itemPos.X, itemPos.Y)) end)
-                
-                if firetouchinterest then
-                    pcall(function()
-                        firetouchinterest(MyHitbox, targetPart, 0)
-                        firetouchinterest(MyHitbox, targetPart, 1)
-                    end)
-                end
-                task.wait(0.15) 
+            if MyHitbox and firetouchinterest then
+                pcall(function()
+                    firetouchinterest(MyHitbox, targetPart, 0)
+                    firetouchinterest(MyHitbox, targetPart, 1)
+                end)
             end
+            task.wait(0.15) 
         end
     end
     
-    -- SELALU KEMBALI KE RUMAH UTAMA YANG SUDAH DIKUNCI
     if hasCollected then
-        MyHitbox.Position = _G.Farm_Center3D
-        pcall(function() MyRemote:FireServer(_G.Farm_Center2D) end)
-        task.wait(0.2) 
+        pcall(function() MyRemote:FireServer(PosisiAsli) end)
+        task.wait(0.1)
     end
 end
 
@@ -305,44 +235,19 @@ task.spawn(function()
     while true do
         if _G.Farm_Active and #_G.Farm_Targets > 0 then
             
-            -- Jika user lupa memencet tombol Kunci Posisi, otomatis kunci saat nyala!
-            if not _G.Farm_CenterGrid then
-                local Hitbox = workspace:FindFirstChild("Hitbox") and workspace.Hitbox:FindFirstChild(LP.Name)
-                if Hitbox then
-                    _G.Farm_Center3D = Hitbox.Position
-                    _G.Farm_Center2D = Vector2.new(Hitbox.Position.X, Hitbox.Position.Y)
-                    _G.Farm_CenterGrid = GetCurrentGrid()
-                end
-            end
-            
             if _G.AutoCollect then StealthCollectDrops() end
             
-            -- BOT SEKARANG 100% MENGGUNAKAN KOORDINAT YANG DIKUNCI
-            local cp = _G.Farm_CenterGrid
+            local cp = GetCurrentGrid()
             
-            if CheckAndSwitchSlot then CheckAndSwitchSlot() end
-            
-            -- PHASE 1: FORCE PLACE
             for _, o in ipairs(_G.Farm_Targets) do
                 if not _G.Farm_Active then break end
                 local tx, ty = math.floor(cp.X + o.X), math.floor(cp.Y + o.Y)
-                
-                local slotsToUse = {}
-                for s in string.gmatch(tostring(_G.Farm_SlotIndex), "%d+") do
-                    table.insert(slotsToUse, tonumber(s))
-                end
-                if #slotsToUse == 0 then table.insert(slotsToUse, 1) end
-                
-                for _, slotNum in ipairs(slotsToUse) do
-                    pcall(function() PlaceRemote:FireServer(Vector2.new(tx, ty), slotNum) end)
-                end
-                
+                if _G.Farm_SlotIndex ~= nil then pcall(function() PlaceRemote:FireServer(Vector2.new(tx, ty), _G.Farm_SlotIndex) end) end
                 task.wait(_G.Farm_PlaceDelay)
             end
             
             task.wait(0.4) 
             
-            -- PHASE 2: FORCE BREAK
             for i = 1, _G.Farm_HitCount do
                 if not _G.Farm_Active then break end
                 for _, o in ipairs(_G.Farm_Targets) do
