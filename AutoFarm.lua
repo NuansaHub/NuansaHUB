@@ -286,7 +286,7 @@ local function SmoothMove(remote, startPos, endPos)
     -- [1] ATUR UKURAN LANGKAH DI SINI (Bawaan awal: 1.5)
     -- Semakin BESAR angkanya = Semakin SEDIKIT langkahnya = SEMAKIN CEPAT SAMPAI!
     -- Coba gunakan angka 4.0 atau 5.0 untuk lari kilat.
-    local steps = math.ceil(dist / 2.0) 
+    local steps = math.ceil(dist / 3.0) 
     
     if steps < 1 then steps = 1 end
     
@@ -371,7 +371,7 @@ local function StealthCollectDrops()
         
         -- Lapor ke server bahwa kita sudah tiba dengan selamat di rumah
         pcall(function() MyRemote:FireServer(_G.SavedPos2D) end)
-        task.wait(0.01)
+        task.wait(0.1)
     end
 end
 
