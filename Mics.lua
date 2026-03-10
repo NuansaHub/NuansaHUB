@@ -130,46 +130,39 @@ SensorBtn.MouseButton1Click:Connect(function()
 end)
 
 -- ==========================================
--- [[ 3. ENGINE KECERDASAN SENSOR NAMA (SAPU JAGAT) ]]
+-- [[ 3. ENGINE SENSOR NAMA GLOBAL (ALL PLAYERS) ]]
 -- ==========================================
 task.spawn(function()
     while true do
         if _G.Misc_HideName then
             pcall(function()
-                local Char = LP.Character
-                if Char and Char:FindFirstChild("HumanoidRootPart") then
-                    local NameTag = Char.HumanoidRootPart:FindFirstChild("NameTagUI")
-                    
-                    if NameTag then
-                        local namaAsli = LP.DisplayName
-                        local namaUsername = LP.Name
+                -- Loop ke SEMUA pemain yang ada di server
+                for _, p in pairs(Players:GetPlayers()) do
+                    local Char = p.Character
+                    if Char and Char:FindFirstChild("HumanoidRootPart") then
+                        local NameTag = Char.HumanoidRootPart:FindFirstChild("NameTagUI")
                         
-                        -- Geledah SEMUA objek di dalam NameTagUI tanpa peduli namanya apa
-                        for _, objek in pairs(NameTag:GetDescendants()) do
-                            
-                            -- Jika objek itu adalah Teks
-                            if objek:IsA("TextLabel") or objek:IsA("TextButton") then
-                                
-                                -- Jangan ganti bendera negara (Biasanya ada di dalam frame "Icon")
-                                if objek.Parent and not string.match(objek.Parent.Name, "Icon") then
+                        if NameTag then
+                            -- Cari semua teks di dalam NameTagUI pemain tersebut
+                            for _, objek in pairs(NameTag:GetDescendants()) do
+                                if objek:IsA("TextLabel") or objek:IsA("TextButton") then
                                     
-                                    -- Jika teksnya berisi nama aslimu, atau masih nama asli...
-                                    if string.find(objek.Text, namaAsli) or string.find(objek.Text, namaUsername) then
-                                        objek.Text = _G.Misc_FakeName
-                                    
-                                    -- Memaksa update bayangan (Shadow) jika belum terganti
-                                    elseif objek.Text ~= _G.Misc_FakeName and (objek.Name == "Text" or objek.Name == "Shadow" or objek.Name == "TextLabel") then
-                                        objek.Text = _G.Misc_FakeName
+                                    -- Jangan ganggu icon/bendera
+                                    if objek.Parent and not string.match(objek.Parent.Name, "Icon") then
+                                        
+                                        -- Ganti jadi nama palsu jika belum terganti
+                                        if objek.Text ~= _G.Misc_FakeName then
+                                            objek.Text = _G.Misc_FakeName
+                                        end
+                                        
                                     end
-                                    
                                 end
                             end
-                            
                         end
                     end
                 end
             end)
         end
-        task.wait(0.1) -- Loop ultra ringan
+        task.wait(0.5) -- Sedikit lebih lambat agar tidak berat karena scan banyak orang
     end
 end)
