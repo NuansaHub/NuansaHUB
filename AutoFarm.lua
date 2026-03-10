@@ -205,7 +205,7 @@ local function CheckAndSwitchSlot()
     end)
 end
 
--- [[ ENGINE GOD MODE: AUTO COLLECT & AUTO FARM ]] --
+-- [[ ENGINE GOD MODE: AUTO COLLECT (5x5 GRID & SAVE POSITION) ]] --
 local function StealthCollectDrops()
     local Drops = workspace:FindFirstChild("Drops")
     if not Drops or #Drops:GetChildren() == 0 then return end
@@ -217,9 +217,13 @@ local function StealthCollectDrops()
     local MyHitbox = workspace:FindFirstChild("Hitbox") and workspace.Hitbox:FindFirstChild(LP.Name)
     if not MyHitbox then return end
     
-    -- Hanya catat posisi 2D untuk dikirim ke server (TIDAK ADA PosisiAsli3D)
-    local PosisiAsli2D = Vector2.new(MyHitbox.Position.X, MyHitbox.Position.Y)
+    -- [1] SIMPAN POSISI ASAL (SAVE POSITION)
+    local PosisiAsli3D = MyHitbox.Position
+    local PosisiAsli2D = Vector2.new(PosisiAsli3D.X, PosisiAsli3D.Y)
     local hasCollected = false
+
+    -- Had jarak 5 Grid (5 grid x 4.5 stud = 22.5 stud)
+    local MaxRadius = 22.5 
 
     for _, item in ipairs(Drops:GetChildren()) do
         if not _G.Farm_Active or not _G.AutoCollect then break end
@@ -227,29 +231,36 @@ local function StealthCollectDrops()
         local targetPart = item:IsA("Model") and (item.PrimaryPart or item:FindFirstChildWhichIsA("BasePart")) or (item:IsA("BasePart") and item or item:FindFirstChildWhichIsA("BasePart"))
         
         if targetPart then
-            hasCollected = true
-            local posBarang = targetPart.Position
+            local itemPos = targetPart.Position
             
-            -- Biarkan Y nya normal (hilangkan +3)
-            local KoordinatPalsu = Vector2.new(posBarang.X, posBarang.Y)
+            -- Kira perbezaan jarak item dari posisi asal
+            local diffX = math.abs(itemPos.X - PosisiAsli3D.X)
+            local diffY = math.abs(itemPos.Y - PosisiAsli3D.Y)
             
-            -- [!] KUNCI AMAN: HANYA TEMBAK SERVER, JANGAN GESER HITBOX SECARA LOKAL!
-            pcall(function() MyRemote:FireServer(KoordinatPalsu) end)
-            
-            if firetouchinterest then
-                pcall(function()
-                    firetouchinterest(MyHitbox, targetPart, 0)
-                    firetouchinterest(MyHitbox, targetPart, 1)
-                end)
+            -- [2] KUTIP JIKA BERADA DALAM LINGKUNGAN 5x5 GRID
+            if diffX <= MaxRadius and diffY <= MaxRadius then
+                hasCollected = true
+                
+                -- Bergerak ke lokasi item dan maklumkan kepada pelayan
+                MyHitbox.Position = itemPos
+                pcall(function() MyRemote:FireServer(Vector2.new(itemPos.X, itemPos.Y)) end)
+                
+                if firetouchinterest then
+                    pcall(function()
+                        firetouchinterest(MyHitbox, targetPart, 0)
+                        firetouchinterest(MyHitbox, targetPart, 1)
+                    end)
+                end
+                task.wait(0.15) -- Jeda pantas agar item sempat didaftarkan ke dalam beg
             end
-            task.wait(0.15) 
         end
     end
     
-    -- Kembalikan posisi server ke tempat aslimu berdiri
+    -- [3] KEMBALI KE POSISI ASAL SELEPAS MENGUTIP SEMUA ITEM
     if hasCollected then
+        MyHitbox.Position = PosisiAsli3D
         pcall(function() MyRemote:FireServer(PosisiAsli2D) end)
-        task.wait(0.1)
+        task.wait(0.2) -- Masa menstabilkan kamera dan pelayan sebelum menyambung aktiviti "farm"
     end
 end
 
