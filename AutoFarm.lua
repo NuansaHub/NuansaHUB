@@ -215,13 +215,22 @@ end
 -- [FITUR BARU] Fungsi untuk memalsukan langkah kecil agar tidak terdeteksi teleport
 local function SmoothMove(remote, startPos, endPos)
     local dist = (endPos - startPos).Magnitude
-    local steps = math.ceil(dist / 1.5) -- Membagi jarak jadi beberapa langkah kecil
+    
+    -- [1] ATUR UKURAN LANGKAH DI SINI (Bawaan awal: 1.5)
+    -- Semakin BESAR angkanya = Semakin SEDIKIT langkahnya = SEMAKIN CEPAT SAMPAI!
+    -- Coba gunakan angka 4.0 atau 5.0 untuk lari kilat.
+    local steps = math.ceil(dist / 5.0) 
+    
     if steps < 1 then steps = 1 end
     
     for i = 1, steps do
         local currentPos = startPos:Lerp(endPos, i / steps)
         pcall(function() remote:FireServer(currentPos) end)
-        task.wait(0.04) -- Jeda menyesuaikan kecepatan server (20 Tick per detik)
+        
+        -- [2] ATUR JEDA PER LANGKAH DI SINI (Bawaan awal: 0.04)
+        -- Semakin KECIL angkanya = Semakin CEPAT pergerakannya.
+        -- Gunakan 0.01 agar nyaris tidak terasa ada jeda.
+        task.wait(0.01) 
     end
 end
 
