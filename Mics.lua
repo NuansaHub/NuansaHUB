@@ -130,38 +130,41 @@ SensorBtn.MouseButton1Click:Connect(function()
 end)
 
 -- ==========================================
--- [[ 3. ENGINE SENSOR NAMA (ANTI-OVERWRITE) ]]
+-- [[ 3. ENGINE SENSOR NAMA PRESISI (ONLY NAME) ]]
 -- ==========================================
 task.spawn(function()
     while true do
         if _G.Misc_HideName then
             pcall(function()
-                -- Scan semua player termasuk diri sendiri
+                -- Ambil semua player di server
                 for _, p in pairs(game:GetService("Players"):GetPlayers()) do
                     local Char = p.Character
                     if Char and Char:FindFirstChild("HumanoidRootPart") then
                         local NameTag = Char.HumanoidRootPart:FindFirstChild("NameTagUI")
                         
                         if NameTag then
+                            -- Cari hanya label yang berisi Nama Asli (Username atau DisplayName)
                             for _, objek in pairs(NameTag:GetDescendants()) do
                                 if objek:IsA("TextLabel") then
                                     
-                                    -- 1. Paksa teks jadi nama palsu
-                                    if objek.Text ~= _G.Misc_FakeName then
-                                        objek.Text = _G.Misc_FakeName
-                                    end
-                                    
-                                    -- 2. Kunci Properti (Agar script game tidak bisa menimpa)
-                                    -- Kita buat teksnya tidak bisa diubah oleh script luar
-                                    if objek:GetAttribute("LockedByAlpha") ~= true then
-                                        objek:SetAttribute("LockedByAlpha", true)
+                                    -- FILTER: Cek apakah teksnya adalah nama si pemain
+                                    -- Kita pakai string.find agar jika ada prefix/titile tetap terdeteksi
+                                    if objek.Text == p.Name or objek.Text == p.DisplayName or string.find(objek.Text, p.DisplayName) then
                                         
-                                        -- Jika script game mencoba ganti teks, kita ganti balik instan
-                                        objek:GetPropertyChangedSignal("Text"):Connect(function()
-                                            if _G.Misc_HideName and objek.Text ~= _G.Misc_FakeName then
-                                                objek.Text = _G.Misc_FakeName
-                                            end
-                                        end)
+                                        -- Ganti hanya jika belum sesuai nama palsu
+                                        if objek.Text ~= _G.Misc_FakeName then
+                                            objek.Text = _G.Misc_FakeName
+                                        end
+                                        
+                                        -- Kunci agar tidak ditimpa script game (Anti-Overlap)
+                                        if not objek:GetAttribute("Locked") then
+                                            objek:SetAttribute("Locked", true)
+                                            objek:GetPropertyChangedSignal("Text"):Connect(function()
+                                                if _G.Misc_HideName and (objek.Text ~= _G.Misc_FakeName) then
+                                                    objek.Text = _G.Misc_FakeName
+                                                end
+                                            end)
+                                        end
                                     end
                                     
                                 end
@@ -171,6 +174,6 @@ task.spawn(function()
                 end
             end)
         end
-        task.wait(0.3) -- Scan rutin setiap 0.3 detik
+        task.wait(0.5) 
     end
 end)
