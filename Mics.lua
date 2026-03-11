@@ -60,12 +60,32 @@ NameBox.ClearTextOnFocus = false
 Instance.new("UICorner", NameBox).CornerRadius = UDim.new(0, 6)
 
 NameBox.FocusLost:Connect(function()
-    -- Begitu selesai mengetik, simpan nama barunya ke otak bot
+    -- Simpan nama barunya
     if NameBox.Text ~= "" then
         _G.Misc_FakeName = NameBox.Text
     else
         NameBox.Text = "Anonim"
         _G.Misc_FakeName = "Anonim"
+    end
+    
+    -- [FITUR BARU] Update instan kalau tombol sedang ON
+    if _G.Misc_HideName then
+        pcall(function()
+            for _, p in pairs(game:GetService("Players"):GetPlayers()) do
+                local Char = p.Character
+                if Char and Char:FindFirstChild("HumanoidRootPart") then
+                    local NameTag = Char.HumanoidRootPart:FindFirstChild("NameTagUI")
+                    if NameTag then
+                        for _, objek in pairs(NameTag:GetDescendants()) do
+                            if objek:IsA("TextLabel") and objek:GetAttribute("Locked") then
+                                -- Langsung timpa semua label yang sudah terkunci dengan nama baru
+                                objek.Text = _G.Misc_FakeName
+                            end
+                        end
+                    end
+                end
+            end
+        end)
     end
 end)
 
