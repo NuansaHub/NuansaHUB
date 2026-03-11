@@ -202,3 +202,70 @@ getgenv().AlphaNameSpoof = RunService.RenderStepped:Connect(function()
         end
     end
 end)
+
+-- ==========================================
+-- [[ 4. UI TOGGLE ANTI-AFK (BYPASS 20 MIN KICK) ]]
+-- ==========================================
+_G.Misc_AntiAFK = false
+
+local AFKFrame = Instance.new("Frame", Page)
+AFKFrame.Size = UDim2.new(1, -10, 0, 35)
+AFKFrame.BackgroundColor3 = Theme.Item
+Instance.new("UICorner", AFKFrame).CornerRadius = UDim.new(0, 6)
+AFKFrame.ZIndex = 1
+
+local AFKLbl = Instance.new("TextLabel", AFKFrame)
+AFKLbl.Size = UDim2.new(0.6, 0, 1, 0)
+AFKLbl.Position = UDim2.new(0, 10, 0, 0)
+AFKLbl.Text = "Anti-AFK (Bypass Kick)"
+AFKLbl.TextColor3 = Theme.Text
+AFKLbl.Font = Enum.Font.Gotham
+AFKLbl.TextSize = 12
+AFKLbl.BackgroundTransparency = 1
+AFKLbl.TextXAlignment = Enum.TextXAlignment.Left
+
+local AFKBtn = Instance.new("TextButton", AFKFrame)
+AFKBtn.Size = UDim2.new(0.45, -10, 0.1, 22)
+AFKBtn.Position = UDim2.new(0.58, -10, 0.5, -11)
+AFKBtn.BackgroundColor3 = Theme.Main
+AFKBtn.Text = "OFF"
+AFKBtn.TextColor3 = Color3.fromRGB(255, 80, 80)
+AFKBtn.Font = Enum.Font.GothamBold
+AFKBtn.TextSize = 10
+Instance.new("UICorner", AFKBtn).CornerRadius = UDim.new(0, 4)
+local AFKStroke = Instance.new("UIStroke", AFKBtn)
+AFKStroke.Color = Color3.fromRGB(255, 80, 80)
+AFKStroke.Thickness = 1
+
+local VirtualUser = game:GetService("VirtualUser")
+local AntiAfkConnection
+
+AFKBtn.MouseButton1Click:Connect(function()
+    _G.Misc_AntiAFK = not _G.Misc_AntiAFK
+    if _G.Misc_AntiAFK then
+        AFKBtn.Text = "ON"
+        AFKBtn.TextColor3 = Theme.Accent
+        AFKStroke.Color = Theme.Accent
+        TS:Create(AFKBtn, TweenInfo.new(0.2), {BackgroundColor3 = Theme.Main}):Play()
+        
+        -- Nyalakan mesin Anti-AFK
+        if not AntiAfkConnection then
+            AntiAfkConnection = LP.Idled:Connect(function()
+                -- Begitu karakter diam terlalu lama, kirim klik virtual!
+                VirtualUser:CaptureController()
+                VirtualUser:ClickButton2(Vector2.new())
+            end)
+        end
+    else
+        AFKBtn.Text = "OFF"
+        AFKBtn.TextColor3 = Color3.fromRGB(255, 80, 80)
+        AFKStroke.Color = Color3.fromRGB(255, 80, 80)
+        TS:Create(AFKBtn, TweenInfo.new(0.2), {BackgroundColor3 = Theme.Main}):Play()
+        
+        -- Matikan mesin Anti-AFK
+        if AntiAfkConnection then
+            AntiAfkConnection:Disconnect()
+            AntiAfkConnection = nil
+        end
+    end
+end)
