@@ -153,34 +153,45 @@ SensorBtn.MouseButton1Click:Connect(function()
 end)
 
 -- ==========================================
--- [[ 3. ENGINE SENSOR NAMA (ABSOLUTE RENDER LOCK) ]]
+-- [[ 3. ENGINE SENSOR NAMA (ULTIMATE RENDER LOCK) ]]
 -- ==========================================
 local RunService = game:GetService("RunService")
 
--- Bersihkan mesin lama jika dieksekusi ulang agar tidak dobel
 if getgenv().AlphaNameSpoof then
     getgenv().AlphaNameSpoof:Disconnect()
 end
 
 getgenv().AlphaNameSpoof = RunService.RenderStepped:Connect(function()
-    -- RenderStepped berjalan 60+ kali per detik, memaksa teks berubah tanpa kedip
     if _G.Misc_HideName then
         for _, p in pairs(Players:GetPlayers()) do
             pcall(function()
                 local Char = p.Character
-                if Char and Char:FindFirstChild("HumanoidRootPart") then
+                if Char then
+                    local realUsername = p.Name
+                    local dispName = p.DisplayName
+                    local fakeName = _G.Misc_FakeName
                     
-                    -- [!] PERBAIKAN: Gunakan GetChildren untuk mencari SEMUA NameTagUI yang dobel/menumpuk
-                    for _, ui in pairs(Char.HumanoidRootPart:GetChildren()) do
-                        if ui.Name == "NameTagUI" then
+                    -- Geledah SELURUH isi karakter (Head, HumanoidRootPart, dll)
+                    for _, objek in pairs(Char:GetDescendants()) do
+                        if objek:IsA("TextLabel") or objek:IsA("TextButton") then
                             
-                            -- Geledah dan paksa semua teks di dalamnya
-                            for _, objek in pairs(ui:GetDescendants()) do
-                                if objek:IsA("TextLabel") then
-                                    if objek.Text ~= _G.Misc_FakeName then
-                                        objek.Text = _G.Misc_FakeName
-                                    end
-                                end
+                            local currentText = objek.Text
+                            
+                            -- Abaikan jika teksnya sudah nama palsu 100%
+                            if currentText == fakeName then continue end
+                            
+                            -- Jika teks mengandung Username Asli
+                            if string.find(currentText, realUsername) then
+                                -- Ganti spesifik kata username asli menjadi nama palsu
+                                local newText = string.gsub(currentText, realUsername, fakeName)
+                                objek.Text = newText
+                            end
+                            
+                            -- Jika teks mengandung Display Name Asli
+                            if string.find(currentText, dispName) then
+                                -- Ganti spesifik kata display name asli menjadi nama palsu
+                                local newText = string.gsub(currentText, dispName, fakeName)
+                                objek.Text = newText
                             end
                             
                         end
