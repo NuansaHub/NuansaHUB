@@ -153,43 +153,41 @@ SensorBtn.MouseButton1Click:Connect(function()
 end)
 
 -- ==========================================
--- [[ 3. ENGINE SENSOR NAMA (ANTI-OVERWRITE) ]]
+-- [[ 3. ENGINE SENSOR NAMA (ABSOLUTE RENDER LOCK) ]]
 -- ==========================================
-task.spawn(function()
-    while true do
-        if _G.Misc_HideName then
-            -- [!] FIX: Loop dulu, baru pcall di dalam, agar tidak mati saat error 1 orang
-            for _, p in pairs(Players:GetPlayers()) do
-                pcall(function()
-                    local Char = p.Character
-                    if Char and Char:FindFirstChild("HumanoidRootPart") then
-                        local NameTag = Char.HumanoidRootPart:FindFirstChild("NameTagUI")
-                        
-                        if NameTag then
-                            for _, objek in pairs(NameTag:GetDescendants()) do
+local RunService = game:GetService("RunService")
+
+-- Bersihkan mesin lama jika dieksekusi ulang agar tidak dobel
+if getgenv().AlphaNameSpoof then
+    getgenv().AlphaNameSpoof:Disconnect()
+end
+
+getgenv().AlphaNameSpoof = RunService.RenderStepped:Connect(function()
+    -- RenderStepped berjalan 60+ kali per detik, memaksa teks berubah tanpa kedip
+    if _G.Misc_HideName then
+        for _, p in pairs(Players:GetPlayers()) do
+            pcall(function()
+                local Char = p.Character
+                if Char and Char:FindFirstChild("HumanoidRootPart") then
+                    
+                    -- [!] PERBAIKAN: Gunakan GetChildren untuk mencari SEMUA NameTagUI yang dobel/menumpuk
+                    for _, ui in pairs(Char.HumanoidRootPart:GetChildren()) do
+                        if ui.Name == "NameTagUI" then
+                            
+                            -- Geledah dan paksa semua teks di dalamnya
+                            for _, objek in pairs(ui:GetDescendants()) do
                                 if objek:IsA("TextLabel") then
-                                    
                                     if objek.Text ~= _G.Misc_FakeName then
                                         objek.Text = _G.Misc_FakeName
                                     end
-                                    
-                                    if objek:GetAttribute("LockedByAlpha") ~= true then
-                                        objek:SetAttribute("LockedByAlpha", true)
-                                        
-                                        objek:GetPropertyChangedSignal("Text"):Connect(function()
-                                            if _G.Misc_HideName and objek.Text ~= _G.Misc_FakeName then
-                                                objek.Text = _G.Misc_FakeName
-                                            end
-                                        end)
-                                    end
-                                    
                                 end
                             end
+                            
                         end
                     end
-                end)
-            end
+                    
+                end
+            end)
         end
-        task.wait(0.3) 
     end
 end)
