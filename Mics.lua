@@ -5,18 +5,18 @@ local Players = game:GetService("Players")
 local TS = game:GetService("TweenService")
 local LP = Players.LocalPlayer
 
--- Cari Halaman UI (Misal nama halamannya "MiscPage")
+-- Cari Halaman UI
 local ScreenGui = getgenv().AlphaProjectUI
 if not ScreenGui then warn("Alpha Project UI tidak ditemukan!") return end
 local Page = ScreenGui:FindFirstChild("MiscPage", true) 
 if not Page then warn("Halaman Misc tidak ditemukan!") return end
 
--- Bersihkan isi halaman sebelum memuat ulang (Mencegah UI ganda)
+-- Bersihkan isi halaman sebelum memuat ulang
 for _, child in pairs(Page:GetChildren()) do
     if not child:IsA("UIListLayout") and not child:IsA("UIPadding") then child:Destroy() end
 end
 
--- Tema Warna (Sesuai dengan Auto Farm)
+-- Tema Warna
 local Theme = {
     Main = Color3.fromRGB(15, 17, 20),    
     Item = Color3.fromRGB(30, 33, 38),    
@@ -27,7 +27,7 @@ local Theme = {
 
 -- [[ VARIABEL GLOBAL MISC ]] --
 _G.Misc_HideName = false
-_G.Misc_FakeName = "Alpha_User" -- Nama palsu bawaan
+_G.Misc_FakeName = "Alpha_User"
 
 -- ==========================================
 -- [[ 1. UI INPUT NAMA PALSU (TEXTBOX) ]]
@@ -59,13 +59,31 @@ NameBox.Text = _G.Misc_FakeName
 NameBox.ClearTextOnFocus = false
 Instance.new("UICorner", NameBox).CornerRadius = UDim.new(0, 6)
 
+-- [!] FIX: Update Instan saat menekan Enter
 NameBox.FocusLost:Connect(function()
-    -- Begitu selesai mengetik, simpan nama barunya ke otak bot
     if NameBox.Text ~= "" then
         _G.Misc_FakeName = NameBox.Text
     else
         NameBox.Text = "Anonim"
         _G.Misc_FakeName = "Anonim"
+    end
+    
+    if _G.Misc_HideName then
+        for _, p in pairs(Players:GetPlayers()) do
+            pcall(function()
+                local Char = p.Character
+                if Char and Char:FindFirstChild("HumanoidRootPart") then
+                    local NameTag = Char.HumanoidRootPart:FindFirstChild("NameTagUI")
+                    if NameTag then
+                        for _, objek in pairs(NameTag:GetDescendants()) do
+                            if objek:IsA("TextLabel") and objek:GetAttribute("LockedByAlpha") then
+                                objek.Text = _G.Misc_FakeName
+                            end
+                        end
+                    end
+                end
+            end)
+        end
     end
 end)
 
@@ -114,17 +132,22 @@ SensorBtn.MouseButton1Click:Connect(function()
         SensorStroke.Color = Color3.fromRGB(255, 80, 80)
         TS:Create(SensorBtn, TweenInfo.new(0.2), {BackgroundColor3 = Theme.Main}):Play()
         
-        -- Kembalikan nama asli jika dimatikan
-        local Char = LP.Character
-        if Char and Char:FindFirstChild("HumanoidRootPart") then
-            local NameTag = Char.HumanoidRootPart:FindFirstChild("NameTagUI")
-            if NameTag and NameTag:FindFirstChild("Text") then
-                local namaAsli = ("%s"):format(LP:GetAttribute("namePrefix") or "") .. LP.DisplayName
-                NameTag.Text.Text = namaAsli
-                if NameTag.Text:FindFirstChild("Shadow") then
-                    NameTag.Text.Shadow.Text = namaAsli
+        -- Kembalikan nama asli
+        for _, p in pairs(Players:GetPlayers()) do
+            pcall(function()
+                local Char = p.Character
+                if Char and Char:FindFirstChild("HumanoidRootPart") then
+                    local NameTag = Char.HumanoidRootPart:FindFirstChild("NameTagUI")
+                    if NameTag then
+                        for _, objek in pairs(NameTag:GetDescendants()) do
+                            if objek:IsA("TextLabel") and objek:GetAttribute("LockedByAlpha") then
+                                local namaAsli = ("%s"):format(p:GetAttribute("namePrefix") or "") .. p.DisplayName
+                                objek.Text = namaAsli
+                            end
+                        end
+                    end
                 end
-            end
+            end)
         end
     end
 end)
@@ -135,9 +158,9 @@ end)
 task.spawn(function()
     while true do
         if _G.Misc_HideName then
-            pcall(function()
-                -- Scan semua player termasuk diri sendiri
-                for _, p in pairs(game:GetService("Players"):GetPlayers()) do
+            -- [!] FIX: Loop dulu, baru pcall di dalam, agar tidak mati saat error 1 orang
+            for _, p in pairs(Players:GetPlayers()) do
+                pcall(function()
                     local Char = p.Character
                     if Char and Char:FindFirstChild("HumanoidRootPart") then
                         local NameTag = Char.HumanoidRootPart:FindFirstChild("NameTagUI")
@@ -146,17 +169,13 @@ task.spawn(function()
                             for _, objek in pairs(NameTag:GetDescendants()) do
                                 if objek:IsA("TextLabel") then
                                     
-                                    -- 1. Paksa teks jadi nama palsu
                                     if objek.Text ~= _G.Misc_FakeName then
                                         objek.Text = _G.Misc_FakeName
                                     end
                                     
-                                    -- 2. Kunci Properti (Agar script game tidak bisa menimpa)
-                                    -- Kita buat teksnya tidak bisa diubah oleh script luar
                                     if objek:GetAttribute("LockedByAlpha") ~= true then
                                         objek:SetAttribute("LockedByAlpha", true)
                                         
-                                        -- Jika script game mencoba ganti teks, kita ganti balik instan
                                         objek:GetPropertyChangedSignal("Text"):Connect(function()
                                             if _G.Misc_HideName and objek.Text ~= _G.Misc_FakeName then
                                                 objek.Text = _G.Misc_FakeName
@@ -168,9 +187,9 @@ task.spawn(function()
                             end
                         end
                     end
-                end
-            end)
+                end)
+            end
         end
-        task.wait(0.3) -- Scan rutin setiap 0.3 detik
+        task.wait(0.3) 
     end
 end)
